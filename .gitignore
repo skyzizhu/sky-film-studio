@@ -1,0 +1,5 @@
+*.wav
+frames/
+checks/
+__pycache__/
+.DS_Store

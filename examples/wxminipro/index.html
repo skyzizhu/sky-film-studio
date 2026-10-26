@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>微信小程序 · 从 0 到上架，7 步</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #060503; overflow: hidden; }
+  canvas { display: block; width: 1920px; height: 1080px; }
+</style>
+<script src="data.js"></script>
+<script>
+  // 字体注册（文件同目录加载，加载完成前不开始渲染）
+  const FONT_DEFS = [
+    { family: "Noto Serif SC", weight: 400, src: "assets/fonts/NotoSerifSC-Regular.otf" },
+    { family: "Noto Serif SC", weight: 600, src: "assets/fonts/NotoSerifSC-SemiBold.otf" },
+    { family: "Noto Serif SC", weight: 700, src: "assets/fonts/NotoSerifSC-Bold.otf" }
+  ];
+  window.__ready = false;
+  Promise.all(FONT_DEFS.map(d => {
+    const f = new FontFace(d.family, `url(${d.src})`, { weight: d.weight });
+    return f.load().then(ff => document.fonts.add(ff));
+  })).then(() => document.fonts.ready).then(() => {
+    // 预热一次文字测量，确保后续帧字体确定
+    window.__ready = true;
+  });
+</script>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="lib.js"></script>
+<script src="scenes_a.js"></script>
+<script src="scenes_b.js"></script>
+<script src="main.js"></script>
+<script>
+  // 暴露 window.draw(t)：画面完全由 t 决定
+  window.draw = function (t) { drawFrame(Math.max(0, Math.min(t, DATA.meta.duration))); };
+  // 批量渲染接口（供导帧用）：从 t0 起连续渲染 n 帧，返回 jpeg dataURL 数组
+  window.renderBatch = function (t0, n, dt, q) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      drawFrame(Math.min(t0 + i * dt, DATA.meta.duration - 1 / 1000));
+      out.push(document.getElementById("c").toDataURL("image/jpeg", q));
+    }
+    return out;
+  };
+</script>
+</body>
+</html>

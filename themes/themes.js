@@ -1,0 +1,75 @@
+// =====================================================================
+// sky-film-studio · themes/themes.js —— 主题注册表（全片一套，scaffold 注入 TH）
+// palette: bg0 底 / bg1 中心 / ink 卡底 / cream 正文 / creamDim 次级
+//          accent 主强调 / accentHi 高光 / accentDeep 暗部 / warn 警示红
+// particles: dust | soot | snow | ticker | bits
+// =====================================================================
+"use strict";
+window.THEMES = {
+
+  default: {   // 暗金电影感（wxminipro 60s 片验证过）
+    key: "default", bpm: 100,
+    palette: { bg0: "#070503", bg1: "#100b06", ink: "#0b0805", cream: "#ede3cd", creamDim: "#b8ac93",
+      accent: "#d9b45c", accentHi: "#f6e3a8", accentDeep: "#8a6a2a", warn: "#b03028",
+      dim: "rgba(237,227,205,0.38)", faint: "rgba(237,227,205,0.16)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 600 },
+    music: { mode: "minor", brightness: 0.55, arpDensity: 1.0 },
+    particles: "dust", vignette: 1.0, grain: 0.055, lightBand: 0.045,
+    decor: {}
+  },
+
+  tech: {      // 科技/互联网：近黑 + 暗金 + 辅青绿
+    key: "tech", bpm: 105,
+    palette: { bg0: "#06070a", bg1: "#0d1118", ink: "#0a0d12", cream: "#e6ecf2", creamDim: "#9fb0bd",
+      accent: "#d9b45c", accentHi: "#f6e3a8", accentDeep: "#8a6a2a", warn: "#e05a4a",
+      secondary: "#58a89b", dim: "rgba(230,236,242,0.38)", faint: "rgba(230,236,242,0.15)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 600 },
+    music: { mode: "minor", brightness: 0.6, arpDensity: 1.1 },
+    particles: "dust", vignette: 1.05, grain: 0.05, lightBand: 0.05,
+    decor: { codeRain: true, dataBands: true }
+  },
+
+  history: {   // 历史/人文：宣纸暗底 + 朱砂 + 墨
+    key: "history", bpm: 85,
+    palette: { bg0: "#141009", bg1: "#241c10", ink: "#1c150c", cream: "#e8dcc2", creamDim: "#b3a483",
+      accent: "#b03028", accentHi: "#d8544a", accentDeep: "#6e1d16", warn: "#b03028",
+      dim: "rgba(232,220,194,0.40)", faint: "rgba(232,220,194,0.16)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 700 },
+    music: { mode: "pentatonic", brightness: 0.4, arpDensity: 0.7 },
+    particles: "soot", vignette: 1.15, grain: 0.07, lightBand: 0.03,
+    decor: { scrollEdge: true, paperTexture: true }
+  },
+
+  news: {      // 新闻/时事：深蓝 + 白 + 红点缀
+    key: "news", bpm: 115,
+    palette: { bg0: "#050d1a", bg1: "#0a1830", ink: "#081120", cream: "#f2f5fa", creamDim: "#a8b8cc",
+      accent: "#e8b23c", accentHi: "#ffe9b0", accentDeep: "#8a6416", warn: "#d84a3a",
+      dim: "rgba(242,245,250,0.40)", faint: "rgba(242,245,250,0.15)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 700 },
+    music: { mode: "major", brightness: 0.65, arpDensity: 1.2 },
+    particles: "ticker", vignette: 0.9, grain: 0.045, lightBand: 0.04,
+    decor: { headlineBar: true, timestamps: true, mapLines: true }
+  },
+
+  code: {      // 技术分享：近黑 + 终端绿 + 暗金
+    key: "code", bpm: 100,
+    palette: { bg0: "#050807", bg1: "#0a1210", ink: "#081009", cream: "#dce8e0", creamDim: "#93a89b",
+      accent: "#58c98d", accentHi: "#a9f0c8", accentDeep: "#2c6e4c", warn: "#e05a4a",
+      secondary: "#d9b45c", dim: "rgba(220,232,224,0.38)", faint: "rgba(220,232,224,0.15)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 600 },
+    music: { mode: "minor", brightness: 0.5, arpDensity: 0.9 },
+    particles: "bits", vignette: 1.0, grain: 0.05, lightBand: 0.035,
+    decor: { terminalChrome: true, grid: true }
+  },
+
+  finance: {   // 商业/财经：深蓝 + 金
+    key: "finance", bpm: 100,
+    palette: { bg0: "#060b16", bg1: "#0c1626", ink: "#091120", cream: "#eef0e8", creamDim: "#a9b2c0",
+      accent: "#e2bd6b", accentHi: "#f8e6b5", accentDeep: "#8a6a24", warn: "#d84a3a",
+      dim: "rgba(238,240,232,0.40)", faint: "rgba(238,240,232,0.15)" },
+    fonts: { serif: "Noto Serif SC", titleWeight: 700 },
+    music: { mode: "major", brightness: 0.55, arpDensity: 1.0 },
+    particles: "dust", vignette: 1.0, grain: 0.05, lightBand: 0.05,
+    decor: { grid: true, risingLines: true }
+  }
+};
