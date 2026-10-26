@@ -72,6 +72,12 @@ stagger=它们是一组；hold=这很重要读它；punch=事件发生了。
 | 强调/反常识断言 | 角框徽标（自绘，参考 examples/wxminipro S6） | ≤14 字 |
 | 情绪收尾/金句 | `endingLine` + `iconGlow` | 收尾不加数据 |
 
+## 装饰边框挂 FILM.frame（chrome 层）
+
+边框/界栏/水印类装饰**不要画在场景里**（会被 punch 缩放推出画外或半帧消失），挂到 `FILM.frame = (ctx, t) => {}`：
+scaffold 在场景之后、字幕之前调用，**不随 punch 缩放、整片稳定**。`progress:false` 贴底字幕模式下，
+边框必须把字幕带包进同一风格区（下边线 ≥ H-40），否则字幕掉在框外形成风格断裂的空带。
+
 ## 进度轨判定（film.json `"progress": true|false|缺省`）
 
 | 内容类型 | progress | 底部呈现 |

@@ -144,6 +144,7 @@ function drawFrame(t) {
     }
   }
 
+  if (window.FILM && window.FILM.frame) window.FILM.frame(ctx, t);   // 装饰边框（chrome 层，不随 punch 缩放）
   drawTopTitle(ctx, t);
   if (window.FILM && window.FILM.timeline) timelineN(ctx, t, window.FILM.timeline);
   else if (progressOn()) drawProgressRail(ctx, t);   // progress:false（情绪/故事/金句型）不画轨，字幕自动贴底
