@@ -21,7 +21,11 @@ def launch(project):
     from playwright.sync_api import sync_playwright
     pw = sync_playwright().start()
     browser = pw.chromium.launch(args=["--force-color-profile=srgb"])
-    page = browser.new_page(viewport={"width": 1920, "height": 1080}, device_scale_factor=1)
+    import json as _json
+    with open("film.json") as _fp:
+        _film = _json.load(_fp)
+    vw, vh = int(_film.get("width", 1920)), int(_film.get("height", 1080))
+    page = browser.new_page(viewport={"width": vw, "height": vh}, device_scale_factor=1)
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"http://127.0.0.1:{port}/index.html")

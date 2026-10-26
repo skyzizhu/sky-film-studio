@@ -16,7 +16,8 @@ function compareBars(ctx, t, l, cfg) {
     rrect(ctx, cfg.x, y, cfg.w, 120, 14); ctx.fill();
     ctx.strokeStyle = hexA(p.accent, 0.35); ctx.lineWidth = 1.4;
     rrect(ctx, cfg.x, y, cfg.w, 120, 14); ctx.stroke();
-    txt(ctx, r.label, cfg.x + 44, y + 42, { size: 29, align: "left", ls: 3 });
+    const fl = fitText(ctx, r.label, cfg.w - 250, 29);
+    txt(ctx, fl.text, cfg.x + 44, y + 42, { size: fl.size, align: "left", ls: 3 });
     const frac = r.fee / cfg.max;
     const grow = E.outCubic(seg(l, cfg.at0 + 0.55 + i * (cfg.dt || 0.3), cfg.at0 + 1.35 + i * (cfg.dt || 0.3)));
     const bw = Math.max(0.018, frac) * (cfg.w - 220) * grow;
@@ -39,11 +40,13 @@ function checkMatrix(ctx, t, l, cfg) {
   if (aM <= 0) return;
   const cw = cfg.cw || 90, chh = cfg.chh || 62, gap = 14;
   cfg.cols.forEach((s, j) => {
-    txt(ctx, s, cfg.x + 150 + j * (cw + gap) + cw / 2, cfg.y + 4, { size: 23, color: p.creamDim, alpha: aM, ls: 2 });
+    const fh = fitText(ctx, s, cw, 23);
+    txt(ctx, fh.text, cfg.x + 150 + j * (cw + gap) + cw / 2, cfg.y + 4, { size: fh.size, color: p.creamDim, alpha: aM, ls: 2 });
   });
   cfg.rows.forEach((rv, i) => {
     const y = cfg.y + 36 + i * (chh + gap);
-    txt(ctx, rv, cfg.x + 60, y + chh / 2 + 1, { size: 24, color: p.creamDim, baseline: "middle", alpha: aM, ls: 2 });
+    const fr2 = fitText(ctx, rv, 130, 24);
+    txt(ctx, fr2.text, cfg.x + 60, y + chh / 2 + 1, { size: fr2.size, color: p.creamDim, baseline: "middle", alpha: aM, ls: 2 });
     cfg.cols.forEach((s, j) => {
       const x = cfg.x + 150 + j * (cw + gap);
       ctx.fillStyle = hexA(p.ink, 0.7);
@@ -89,8 +92,9 @@ function progressRing(ctx, t, l, cfg) {
     }
     const am = a0 + (a1 - a0) / 2;
     const on = l >= cfg.at0 + i * per;
-    txt(ctx, s, cx + Math.cos(am) * (R + 66), cy + Math.sin(am) * (R + 62), {
-      size: 25, baseline: "middle", ls: 1,
+    const fl3 = fitText(ctx, s, 150, 25);
+    txt(ctx, fl3.text, cx + Math.cos(am) * (R + 66), cy + Math.sin(am) * (R + 62), {
+      size: fl3.size, baseline: "middle", ls: 1,
       color: on ? (i === st.length - 1 ? p.accentHi : p.cream) : hexA(p.cream, 0.46),
       glow: on && i === st.length - 1 ? 12 : 0
     });
@@ -107,7 +111,8 @@ function progressRing(ctx, t, l, cfg) {
   ctx.restore();
   if (cfg.timesLine) {
     const ta = seg(l, cfg.at0 + 1.45, cfg.at0 + 1.9);
-    if (ta > 0) txt(ctx, cfg.timesLine, cx, cy + R + 188, { size: 25, color: p.creamDim, alpha: ta, ls: 2 });
+    const ft2 = fitText(ctx, cfg.timesLine, W - 240, 25);
+    txt(ctx, ft2.text, cx, cfg.timesY ?? cy + R + 92, { size: ft2.size, color: p.creamDim, alpha: ta, ls: 2 });
   }
 }
 
@@ -117,8 +122,10 @@ function progressBadge(ctx, t, l, cfg) {
   const aBar = seg(l, cfg.at0, cfg.at0 + 0.45);
   if (aBar > 0) {
     const x0 = cfg.x0 ?? 400, x1 = cfg.x1 ?? 1520, y = cfg.y ?? 430;
-    txt(ctx, cfg.title || "代码审核", W / 2, y - 72, { size: 31, color: p.creamDim, ls: 10, alpha: aBar });
-    txt(ctx, `${cfg.min}–${cfg.max} 个工作日 · ${cfg.note}`, W / 2, y - 30, { size: 24, color: hexA(p.cream, 0.5), alpha: aBar, ls: 4 });
+    const ftT = fitText(ctx, cfg.title || "代码审核", W - 500, 31);
+    txt(ctx, ftT.text, W / 2, y - 72, { size: ftT.size, color: p.creamDim, ls: 10, alpha: aBar });
+    const ftN = fitText(ctx, `${cfg.min}–${cfg.max} 个工作日 · ${cfg.note}`, W - 360, 24);
+    txt(ctx, ftN.text, W / 2, y - 30, { size: ftN.size, color: hexA(p.cream, 0.5), alpha: aBar, ls: 4 });
     ctx.fillStyle = hexA(p.accent, 0.14);
     rrect(ctx, x0, y, x1 - x0, 14, 7); ctx.fill();
     for (let k = cfg.min; k <= cfg.max; k++) {
@@ -191,7 +198,10 @@ function progressBadge(ctx, t, l, cfg) {
         ctx.restore();
       }
     }
-    if (cfg.manualNote) txt(ctx, cfg.manualNote, W / 2, 800, { size: 24, color: p.creamDim, alpha: seg(l, cfg.btnAt - 0.4, cfg.btnAt), ls: 2 });
+    if (cfg.manualNote) {
+      const ftM = fitText(ctx, cfg.manualNote, W - 320, 24);
+      txt(ctx, ftM.text, W / 2, Math.min(800, H - 300), { size: ftM.size, color: p.creamDim, alpha: seg(l, cfg.btnAt - 0.4, cfg.btnAt), ls: 2 });
+    }
   }
 }
 

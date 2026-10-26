@@ -6,7 +6,7 @@
 // =====================================================================
 "use strict";
 
-const W = 1920, H = 1080;
+let W = 1920, H = 1080;   // scaffold 按 film.json 覆盖（支持任意比例）
 let TH = null;                       // 当前主题（scaffold 注入）
 const PAL = () => TH.palette;
 
@@ -201,6 +201,21 @@ function rule(ctx, x1, x2, y, alpha = 0.5, th = 1) {
   g.addColorStop(1, hexA(TH.palette.accent, 0));
   ctx.fillStyle = g; ctx.fillRect(x1, y - th / 2, x2 - x1, th);
   ctx.restore();
+}
+
+// ---------- 收缩适配文字：超宽先缩字号（下限 60%），仍超则截断加省略号 ----------
+function fitText(ctx, s, maxW, size, weight = 600, floor = 0.6) {
+  let sz = size;
+  while (sz > Math.max(9, Math.round(size * floor))) {
+    ctx.font = FONT(weight, sz);
+    if (ctx.measureText(s).width <= maxW) return { text: s, size: sz };
+    sz -= 1;
+  }
+  const fsz = Math.max(9, Math.round(size * floor));
+  ctx.font = FONT(weight, fsz);
+  let t = s;
+  while (t.length > 2 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return { text: t + "…", size: fsz };
 }
 
 // ---------- 对勾（描边动画） ----------

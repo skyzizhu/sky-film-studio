@@ -19,6 +19,14 @@ async function bootScaffold() {
   catch (e) {
     FILM_META = (window.FILM && window.FILM.meta) || { duration: 60, fps: 30, beats: [] };
   }
+  // 任意比例：画布尺寸由 film.json 决定
+  {
+    const cv = document.getElementById("c");
+    W = Math.max(320, FILM_META.width || 1920);
+    H = Math.max(320, FILM_META.height || 1080);
+    cv.width = W; cv.height = H;
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+  }
   try { CUES = await (await fetch("audio/cues.json")).json(); } catch (e) { CUES = null; }
   if (window.__fontsReady) await window.__fontsReady;
   await document.fonts.ready;
@@ -39,14 +47,19 @@ function drawSubtitle(ctx, t) {
     if (s) text = s[2], a = seg(t, s[0], s[0] + 0.3) * (1 - seg(t, s[1] - 0.3, s[1]));
   }
   if (!text || a <= 0) return;
+  // 每行字数随画幅自适应；最多 3 行；字幕区锚定画布底部
+  const cpl = Math.max(12, Math.min(28, Math.floor((W - 140) / 39)));
+  const lines = [];
+  for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
+  const subY = H - 190;
+  const topY = subY - (lines.length - 1) * 46;
   ctx.save();
-  const g = ctx.createLinearGradient(0, 830, 0, 920);
+  const g = ctx.createLinearGradient(0, topY - 56, 0, topY + 34);
   g.addColorStop(0, "rgba(5,4,2,0)"); g.addColorStop(1, "rgba(5,4,2,0.5)");
-  ctx.fillStyle = g; ctx.fillRect(0, 830, W, 90);
+  ctx.fillStyle = g; ctx.fillRect(0, topY - 56, W, 90);
   ctx.restore();
-  const lines = text.length > 28 ? [text.slice(0, 28), text.slice(28)] : [text];
   lines.forEach((ln, i) => {
-    txt(ctx, ln, W / 2, 890 - (lines.length - 1 - i) * 46, {
+    txt(ctx, ln, W / 2, subY - (lines.length - 1 - i) * 46, {
       size: 37, weight: 600, alpha: a, ls: 3, glow: 8, glowColor: "rgba(0,0,0,0.9)"
     });
   });
@@ -58,9 +71,10 @@ function drawTopTitle(ctx, t) {
   const fadeOut = (FILM_META.chrome && FILM_META.chrome.titleFade) || 1e9;
   const a = seg(t, at, at + 0.45) * (1 - seg(t, fadeOut, fadeOut + 1.2));
   if (a <= 0) return;
-  txt(ctx, FILM_META.title, W / 2, 66, { size: 30, weight: TH.fonts.titleWeight || 600, ls: 10, alpha: a, glow: 10 });
-  rule(ctx, 320, W / 2 - 480, 66, 0.4 * a, 1.4);
-  rule(ctx, W / 2 + 480, 1600, 66, 0.4 * a, 1.4);
+  const ftT = fitText(ctx, FILM_META.title, W - 260, 30);
+  txt(ctx, ftT.text, W / 2, 66, { size: ftT.size, weight: TH.fonts.titleWeight || 600, ls: 10, alpha: a, glow: 10 });
+  rule(ctx, Math.max(110, W / 2 - 580), W / 2 - 440, 66, 0.4 * a, 1.4);
+  rule(ctx, W / 2 + 440, Math.min(W - 110, W / 2 + 580), 66, 0.4 * a, 1.4);
 }
 
 function drawFrame(t) {

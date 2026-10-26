@@ -63,7 +63,13 @@ Every film must be **watchable without explanation, truthful in every number, an
 
 ## Pipeline（照此执行，顺序不换）
 
-1. **规格**：定模式、主题、时长（默认 60s，边界内）、画幅（默认 1920×1080 横屏 30fps）。
+1. **规格**：定模式、主题、时长（默认 60s，边界内）、**比例**（见下）、帧率（默认 30fps）。
+
+   **比例规则**：用户未提或说"横屏" → 16:9（1920×1080）；说"竖屏" → 9:16（1080×1920）；
+   点名比例 → 按点名（支持 1:1 / 4:3 / 3:4 / 4:5 / 2.35:1 / 任意 W:H 或 WxH）。
+   `new.py --ratio` 传入；film.json 的 width/height 全链路生效：画布尺寸、Playwright 视口、
+   字幕每行字数、顶栏/字幕/时间轴锚点全部随画幅自适应；窄画幅（宽<1280）时间轴自动切
+   紧凑模式（只显节点序号+当前步骤名）。竖屏内容布局见 storyboard.md「竖屏指南」。
 2. **内容**：A→调研写稿；B→用户稿断句（每句一行）；含数字主张一律逐条 WebSearch 核实 → 写 `data.js`（含来源）。
 3. **语音与时长**：`python3 $S/engine/voice.py say --project <film>` 逐句合成出 `cues.json`；`voice.py plan --project <film>` 生成节拍化 beats 草案（含 hook 前置小节），据此写 `film.json`。C 模式跳过，直接按目标时长排 beats。
 4. **分镜**：按 [references/storyboard.md](references/storyboard.md) 的「文字→组件映射表」逐拍生成分镜：前/中/背景三层、每章 ≥1 数据动效、结尾落人心一句；写 `storyboard.js`（组件库拼装，数字只从 data.js 读）。

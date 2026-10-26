@@ -38,7 +38,8 @@ function phoneScreen(ctx, t, l, cfg) {
     ctx.strokeStyle = hexA(p.creamDim, 0.55 * navA); ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(sx, sy + 52); ctx.lineTo(sx + sw, sy + 52); ctx.stroke();
     if (colorP > 0) { ctx.fillStyle = hexA(p.accentDeep, colorP * 0.5); ctx.fillRect(sx, sy, sw, 52); }
-    txt(ctx, cfg.navTitle || "小程序", sx + sw / 2, sy + 34, { size: 22, color: p.creamDim, alpha: navA, ls: 4 });
+    const fnv = fitText(ctx, cfg.navTitle || "小程序", sw - 100, 22);
+    txt(ctx, fnv.text, sx + sw / 2, sy + 34, { size: fnv.size, color: p.creamDim, alpha: navA, ls: 4 });
   }
   const heroA = seg(wire, 0.15, 0.5);
   if (heroA > 0) {
@@ -85,8 +86,9 @@ function phoneScreen(ctx, t, l, cfg) {
       ctx.fillStyle = g; rrect(ctx, sx + 40, by - 26, sw - 80, 52, 26); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    txt(ctx, cfg.btnText || "立即体验", sx + sw / 2, by + 1, {
-      size: 24, baseline: "middle", ls: 6, color: colorP > 0.5 ? p.bg0 : p.creamDim, alpha: btnA
+    const fbt = fitText(ctx, cfg.btnText || "立即体验", sw - 150, 24);
+    txt(ctx, fbt.text, sx + sw / 2, by + 1, {
+      size: fbt.size, baseline: "middle", ls: 6, color: colorP > 0.5 ? p.bg0 : p.creamDim, alpha: btnA
     });
     ctx.restore();
     if (pressed > 0) {
@@ -128,6 +130,8 @@ function codePanel(ctx, t, l, cfg) {
     if (yy < y + 56 || yy > y + h - 14) continue;
     const [s, kind] = cfg.lines[idx];
     if (!s) continue;
+    ctx.font = MONO(19);
+    if (ctx.measureText(s).width > w - 60) continue;   // 超宽代码行跳过，不溢出面板
     const col = kind === 1 ? hexA(p.accent, 0.9) : kind === 3 ? hexA(p.creamDim, 0.85)
       : kind === 2 ? hexA(p.creamDim, 0.45) : hexA(p.cream, 0.7);
     ctx.font = MONO(19);
@@ -162,8 +166,9 @@ function iconGlow(ctx, t, l, cfg) {
     const at = cfg.at + 1.5 + i * 0.15;
     const a = seg(l, at, at + 0.55);
     if (a <= 0) return;
-    txt(ctx, ln.text, cfg.lx ?? 560, (cfg.ly ?? 430) + i * (cfg.lineGap || 74), {
-      size: ln.size || 42, weight: 600, color: ln.gold ? p.accentHi : p.cream, alpha: a, ls: 8, glow: 14
+    const feL = fitText(ctx, ln.text, Math.min(760, W - 200), ln.size || 42);
+    txt(ctx, feL.text, cfg.lx ?? 560, (cfg.ly ?? 430) + i * (cfg.lineGap || 74), {
+      size: feL.size, weight: 600, color: ln.gold ? p.accentHi : p.cream, alpha: a, ls: 8, glow: 14
     });
   });
 }
@@ -177,7 +182,8 @@ function endingLine(ctx, t, l, cfg) {
     if (cfg.endTitle) {
       const endA = pulse(l, cfg.at + 0.4, cfg.at + 2.3) * 0.95;
       if (endA > 0) {
-        txt(ctx, cfg.endTitle, W / 2, H / 2, { size: 32, alpha: endA, ls: 12, glow: 12 });
+        const feT = fitText(ctx, cfg.endTitle, W - 320, 32);
+        txt(ctx, feT.text, W / 2, H / 2, { size: feT.size, alpha: endA, ls: 12, glow: 12 });
         rule(ctx, W / 2 - 260, W / 2 + 260, H / 2 + 38, endA * 0.6);
       }
     }

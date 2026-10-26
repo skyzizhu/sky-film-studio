@@ -42,6 +42,8 @@ ffmpeg -y -framerate 30 -i <film>/frames/f%05d.jpg -i <film>/audio/mix.wav \
 ```
 
 - `duration` 由 plan 算出（Σ小节），渲染与音频都以它为准；frames = ceil(duration×fps)+1。
+- `width`/`height` 真实生效：scaffold 设置画布、render.py 设视口、字幕每行字数/时间轴模式随宽自适应；
+  `new.py --ratio 9:16|1:1|4:3|3:4|4:5|2.35:1|W:H|WxH`。
 - `energy` 0–1 → 织体：>0.15 贝斯，>0.25 底鼓，>0.45 军鼓+镲，>0.55 琶音，>0.8 重击/切分。
 - `sfx` kind：`boom ping tick key ding chime stamp thock clock strike pageturn blip whoosh swell`（第 4 元素可选传频率参数）。
 

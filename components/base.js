@@ -57,9 +57,10 @@ function numCounter(ctx, t, l, cfg) {
     if (prog <= 0 || fade <= 0) return;
     const val = d.roll * prog;
     const shown = String(d.text).includes(".") ? val.toFixed(2) : String(Math.round(val));
-    const x = cfg.x !== undefined ? cfg.x + (i - (items.length - 1) / 2) * (cfg.span || 800)
-      : W / 2 + (i - (items.length - 1) / 2) * (cfg.span || 800);
-    const y = cfg.y || 760;
+    const vert = W < 1280 && items.length > 1;      // 窄画幅：双数字改竖排
+    const span = vert ? 0 : (cfg.span || Math.min(800, W - 320));
+    const x = (cfg.x !== undefined ? cfg.x : W / 2) + (i - (items.length - 1) / 2) * span;
+    const y = (cfg.y || 760) + (vert ? i * 230 : 0);
     ctx.save(); ctx.textAlign = "center";
     ctx.font = FONT(700, numSize);
     if ("letterSpacing" in ctx) ctx.letterSpacing = "2px";
@@ -70,7 +71,8 @@ function numCounter(ctx, t, l, cfg) {
     txt(ctx, shown, x0 + wNum / 2, y, { size: numSize, weight: 700, baseline: "middle", gradient: true, alpha: fade, glow: 20 });
     txt(ctx, d.unit, x0 + wNum + 12 + wUnit / 2, y + 16, { size: numSize * 0.44, weight: 600, baseline: "middle", color: p.accent, alpha: fade });
     const aLab = seg(prog, 0.55, 1) * fade;
-    txt(ctx, d.label, x, y + numSize * 0.62, { size: 30, color: p.creamDim, ls: 4, alpha: aLab });
+    const flL = fitText(ctx, d.label, Math.min(460, W - 120), 30);
+    txt(ctx, flL.text, x, y + numSize * 0.62, { size: flL.size, color: p.creamDim, ls: 4, alpha: aLab });
     if (d.tag) txt(ctx, d.tag, x, y + numSize * 0.96, { size: 21, color: p.faint, ls: 3, alpha: aLab });
     ctx.restore();
   });
@@ -95,7 +97,8 @@ function stepIntro(ctx, t, l, idx, nameStr, color) {
   ctx.restore();
   const aN = seg(l, 0.12, 0.5);
   txt(ctx, `第 ${idx} 步`, 150, 118, { size: 25, color: color || p.accent, align: "left", alpha: aN * 0.92, ls: 8 });
-  txt(ctx, nameStr, 150, 180, { size: 44, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
+  const fn2 = fitText(ctx, nameStr, W - 420, 44);
+  txt(ctx, fn2.text, 150, 180, { size: fn2.size, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
   rule(ctx, 152, 152 + 300 * aN, 208, 0.5, 2);
 }
 
@@ -105,7 +108,8 @@ function timelineN(ctx, t, cfg) {
   const fade = (cfg.alpha ?? 1) * seg(t, cfg.showAt ?? 1.95, (cfg.showAt ?? 1.95) + 0.45)
     * (1 - seg(t, cfg.fadeAt ?? 1e9, (cfg.fadeAt ?? 1e9) + 1.2));
   if (fade <= 0) return;
-  const x0 = cfg.x0 ?? 330, x1 = cfg.x1 ?? 1590, y = cfg.y ?? 1008;
+  const x0 = cfg.x0 ?? Math.round(W * 0.17), x1 = cfg.x1 ?? Math.round(W * 0.83), y = cfg.y ?? H - 72;
+  const compact = W < 1280;   // 窄画幅紧凑模式：只画序号，当前步骤名居中在轴上方
   const n = cfg.items.length, xs = i => x0 + i * (x1 - x0) / (n - 1);
   const starts = cfg.starts, doneAll = t >= (cfg.doneAt ?? 1e9);
   let act = -1;
@@ -147,12 +151,21 @@ function timelineN(ctx, t, cfg) {
       ctx.strokeStyle = hexA(p.accentHi, (1 - q) * 0.7); ctx.lineWidth = 2.4;
       ctx.beginPath(); ctx.arc(x, y, 10 + q * 46, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-    txt(ctx, cfg.items[i].label, x, 1046, {
-      size: isActive ? 24 : 19.5, weight: isActive ? 700 : 600,
-      color: isActive ? p.accentHi : lit ? p.creamDim : p.faint,
-      alpha: fade * (lit ? (isActive ? 1 : 0.85) : 0.4), ls: 1, glow: isActive ? 8 : 0
-    });
-    txt(ctx, String(i + 1), x, y - 26, { size: 17, color: lit ? p.accent : p.faint, alpha: fade * (lit ? 0.9 : 0.6) });
+    if (compact) {
+      txt(ctx, String(i + 1), x, y + 24, { size: 15, color: lit ? p.accent : p.faint, alpha: fade * (lit ? 0.9 : 0.5) });
+      if (isActive) {
+        const flC = fitText(ctx, cfg.items[i].label, W - 160, 22);
+        txt(ctx, flC.text, W / 2, y - 34, { size: flC.size, weight: 700, color: p.accentHi, alpha: fade, ls: 2, glow: 8 });
+      }
+    } else {
+      const flC = fitText(ctx, cfg.items[i].label, (x1 - x0) / (n - 1) - 12, isActive ? 24 : 19.5);
+      txt(ctx, flC.text, x, H - 34, {
+        size: flC.size, weight: isActive ? 700 : 600,
+        color: isActive ? p.accentHi : lit ? p.creamDim : p.faint,
+        alpha: fade * (lit ? (isActive ? 1 : 0.85) : 0.4), ls: 1, glow: isActive ? 8 : 0
+      });
+      txt(ctx, String(i + 1), x, y - 26, { size: 17, color: lit ? p.accent : p.faint, alpha: fade * (lit ? 0.9 : 0.6) });
+    }
   }
   ctx.restore();
 }
@@ -180,7 +193,8 @@ function checkList(ctx, t, l, cfg) {
     ctx.strokeStyle = hexA(p.accent, 0.6 * bA); ctx.lineWidth = 1.6;
     rrect(ctx, cfg.x + 48, y - 17, 34, 34, 7); ctx.stroke();
     checkMark(ctx, cfg.x + 65, y, 26, seg(l, at, at + 0.35));
-    txt(ctx, s, cfg.x + 110, y + 1, { size: 29, align: "left", baseline: "middle", alpha: bA, ls: 3 });
+    const ft = fitText(ctx, s, cfg.w - 160, 29);
+    txt(ctx, ft.text, cfg.x + 110, y + 1, { size: ft.size, align: "left", baseline: "middle", alpha: bA, ls: 3 });
   });
 }
 
@@ -221,7 +235,8 @@ function flowPath(ctx, t, l, cfg) {
     ctx.strokeStyle = hexA(p.accent, 0.55); ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.arc(0, 0, 27, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    txt(ctx, s, x, y + 56, { size: 25, color: p.creamDim, alpha: a, ls: 2 });
+    const fl = fitText(ctx, s, step * 0.86, 25);
+    txt(ctx, fl.text, x, y + 56, { size: fl.size, color: p.creamDim, alpha: a, ls: 2 });
   });
 }
 
@@ -230,23 +245,27 @@ function folder(ctx, t, l, cfg) {
   const p = PAL();
   const a = E.outBack(seg(l, cfg.at, cfg.at + 0.45));
   if (a <= 0) return;
+  const nh = cfg.pairs.length <= 2 ? 148 : 148 + (cfg.pairs.length - 2) * 52;   // 高度随行数
   ctx.save();
   ctx.translate(cfg.cx, cfg.cy); ctx.scale(a, a); ctx.translate(-cfg.cx, -cfg.cy);
   ctx.fillStyle = hexA(p.ink, 0.94);
-  rrect(ctx, cfg.cx - 380, cfg.cy - 74, 760, 148, 12); ctx.fill();
+  rrect(ctx, cfg.cx - 380, cfg.cy - nh / 2, 760, nh, 12); ctx.fill();
   ctx.strokeStyle = hexA(p.accent, 0.5); ctx.lineWidth = 1.8;
-  rrect(ctx, cfg.cx - 380, cfg.cy - 74, 760, 148, 12); ctx.stroke();
+  rrect(ctx, cfg.cx - 380, cfg.cy - nh / 2, 760, nh, 12); ctx.stroke();
   ctx.fillStyle = hexA(p.accent, 0.16);
-  rrect(ctx, cfg.cx - 250, cfg.cy - 92, 190, 24, 6); ctx.fill();
+  rrect(ctx, cfg.cx - 250, cfg.cy - nh / 2 - 18, 190, 24, 6); ctx.fill();
   ctx.strokeStyle = hexA(p.accent, 0.4); ctx.lineWidth = 1;
-  rrect(ctx, cfg.cx - 250, cfg.cy - 92, 190, 24, 6); ctx.stroke();
-  txt(ctx, cfg.title, cfg.cx - 155, cfg.cy - 79, { size: 19, color: p.accent, ls: 3 });
+  rrect(ctx, cfg.cx - 250, cfg.cy - nh / 2 - 18, 190, 24, 6); ctx.stroke();
+  txt(ctx, cfg.title, cfg.cx - 155, cfg.cy - nh / 2 - 5, { size: 19, color: p.accent, ls: 3 });
+  const py0 = cfg.cy - (cfg.pairs.length - 1) * 26;                            // 行垂直居中
   cfg.pairs.forEach((pair, i) => {
     const aq = seg(l, cfg.at + 0.4 + i * 0.4, cfg.at + 0.8 + i * 0.4);
     if (aq <= 0) return;
-    txt(ctx, pair[0], cfg.cx - 240, cfg.cy - 8 + i * 52, { size: 30, baseline: "middle", alpha: aq, ls: 2 });
-    txt(ctx, "→", cfg.cx - 108, cfg.cy - 8 + i * 52, { size: 26, baseline: "middle", color: p.accentDeep, alpha: aq });
-    txt(ctx, pair[1], cfg.cx + 40, cfg.cy - 8 + i * 52, { size: 30, baseline: "middle", color: p.accentHi, alpha: aq, ls: 2, align: "left" });
+    const fa = fitText(ctx, pair[0], 130, 30);
+    const fb = fitText(ctx, pair[1], 380, 30);
+    txt(ctx, fa.text, cfg.cx - 240, py0 + i * 52, { size: fa.size, baseline: "middle", alpha: aq, ls: 2 });
+    txt(ctx, "→", cfg.cx - 108, py0 + i * 52, { size: 26, baseline: "middle", color: p.accentDeep, alpha: aq });
+    txt(ctx, fb.text, cfg.cx + 40, py0 + i * 52, { size: fb.size, baseline: "middle", color: p.accentHi, alpha: aq, ls: 2, align: "left" });
   });
   ctx.restore();
   if (cfg.note) txt(ctx, cfg.note, cfg.cx, cfg.cy + 108, { size: 21, color: p.faint, alpha: seg(l, cfg.at + 1.05, cfg.at + 1.45), ls: 2 });
@@ -264,7 +283,8 @@ function dateCard(ctx, t, l, cfg) {
   rrect(ctx, x, y, w, h, 12); ctx.fill();
   ctx.strokeStyle = hexA(p.accent, 0.4); ctx.lineWidth = 1.5;
   rrect(ctx, x, y, w, h, 12); ctx.stroke();
-  txt(ctx, cfg.date, x + w / 2, y + 86, { size: 58, weight: 700, ls: 2, gradient: true, glow: 12 });
+  const fd = fitText(ctx, cfg.date, w - 40, 58);
+  txt(ctx, fd.text, x + w / 2, y + 86, { size: fd.size, weight: 700, ls: 2, gradient: true, glow: 12 });
   txt(ctx, cfg.note, x + w / 2, y + 136, { size: 26, color: p.creamDim, ls: 8 });
   ctx.restore();
   if (cfg.stampText) {
