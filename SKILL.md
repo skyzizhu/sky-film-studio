@@ -61,6 +61,8 @@ Every film must be **watchable without explanation, truthful in every number, an
 
 新建项目：`python3 $S/engine/new.py <dir> --name 片名 --theme tech`（vendor 自带，项目自包含可 zip 复现）。
 
+chrome 自动适配：字幕/顶栏锚定画布；**storyboard 配了 timeline 用 timelineN，没配则 scaffold 自动画进度轨**（拍刻度+渐变进度+游标）填底，不留空白带。
+
 ## Pipeline（照此执行，顺序不换）
 
 1. **规格**：定模式、主题、时长（默认 60s，边界内）、**比例**（见下）、帧率（默认 30fps）。
