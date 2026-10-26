@@ -19,6 +19,7 @@ window.DECOR = {
       const speed = 26 + rnd() * 40, y0 = rnd() * (H + 200);
       for (let k = 0; k < 9; k++) {
         const y = ((y0 + t * speed + k * 34) % (H + 120)) - 60;
+        if (y < 46) continue;                                   // 顶部边缘带留给内容
         const a = 0.05 * (1 - k / 10);
         ctx.fillStyle = hexA(p.cream, a);
         ctx.fillText("01<>{}/;"[(k + c * 3) % 10], x, y);
@@ -37,7 +38,7 @@ window.DECOR = {
     const rnd = mulberry32(8527);
     ctx.save();
     for (let i = 0; i < 26; i++) {
-      const x = rnd() * W, y = rnd() * H, r = 30 + rnd() * 130;
+      const x = 80 + rnd() * (W - 160), y = 80 + rnd() * (H - 160), r = 30 + rnd() * 130;   // 避开 60px 边缘带
       ctx.fillStyle = hexA(p.cream, 0.018 + rnd() * 0.022);
       ctx.beginPath(); ctx.ellipse(x, y, r, r * (0.5 + rnd() * 0.5), rnd() * 3, 0, Math.PI * 2); ctx.fill();
     }

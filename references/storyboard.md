@@ -36,6 +36,12 @@
 | 金句/结尾 | `charFloat` | 逐字浮出，stagger 0.05s |
 | 数字落定 | `numCounter`（内置微弹） | 落定那刻=口播说出数值那刻，宁早勿晚最多早 1 帧 |
 
+**实体落实纪律（硬规则）**：分镜时把每句口播里的**实体名词逐个列出**（人物/景物/器物/材质），
+每个实体必须有对应的实体动画——具体名词优先用 `entities.js` 参数化实体（monk/scholar/worker/buddha/
+cliff/cliff7/mural/mural2 + drawScrollDoc 卷轴展开 + drawSand 沙粒堆积）或现场组合新实体；
+图标库只做通用词兜底。**不许"最近似图标"糊弄具体名词**（僧人≠person、画壁≠doc、文书≠file-text）。
+每个实体都要有诞生动画（逐笔描出/展开/飘落堆积/生长）。
+
 **实物动画（components/objectfx.js `drawObj` 逐笔描出）**
 实物来源两层：**手绘件**（seal/stamp/chartUp/person/db/doc/bubble/code/cloud/lock/key/magnifier/phone/folder/gear/flag…本地坐标大笔触）+ **图标库**（`icons.js`，lucide 137 个专业矢量线稿，键名即英文单词）。
 图标库常用映射（口播名词 → 图标键名）：

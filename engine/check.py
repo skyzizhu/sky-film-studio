@@ -3,7 +3,7 @@
   sheet  --project <dir> [--n 4]   checks/key_*.jpg 拼大图（960×540/格）
   audio  --project <dir>           mix.wav 分段 RMS / 峰值 / 淡出校验
   edges  --project <dir> [--thr 32] [--every 15]  低阈值四边扫描（抓弱透明元素被裁）"""
-import argparse, glob, subprocess, sys
+import argparse, glob, json, subprocess, sys
 
 
 def cmd_sheet(args):
@@ -74,8 +74,21 @@ if __name__ == "__main__":
         frames = sorted(_g.glob("frames/f*.jpg"))
         if not frames:
             raise SystemExit("先 render.py --full")
+        # 拍首转场窗豁免：wipe 是合法全屏覆盖，不算贴边
+        skip = []
+        try:
+            film = json.load(open("film.json"))
+            if film.get("wipe"):
+                beats = sorted(film.get("beats", []), key=lambda b: b["start"])
+                skip = [(b["start"], b["start"] + 0.6) for b in beats[1:]]
+        except Exception:
+            pass
+        fps = 30
         bad = 0
         for f in frames[::args.every]:
+            t = (int(f.split("f")[-1].split(".")[0])) / fps
+            if any(a <= t <= b for a, b in skip):
+                continue
             a = _np.asarray(_Im.open(f).convert("L"), _np.float32)
             h, w = a.shape
             hits = [nm for nm, band in [("上", a[:26, :]), ("下", a[h-26:, :]), ("左", a[:, :26]), ("右", a[:, w-26:])]

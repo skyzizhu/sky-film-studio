@@ -77,7 +77,8 @@ function rays(ctx, t, l, cfg) {
   for (let i = 0; i < n; i++) {
     if (i % 2) continue;                                  // 隔一道画，疏朗
     const ang = i / n * Math.PI * 2;
-    const r1 = cfg.r0 || 120, r2 = cfg.r1 || Math.max(W, H) * 0.75;
+    // 默认收在画内（中心到四边距离×0.92）；要全屏出血光需显式传 cfg.r1
+    const r1 = cfg.r0 || 120, r2 = cfg.r1 || Math.min(cfg.x, W - cfg.x, cfg.y, H - cfg.y) * 0.92;
     const g = ctx.createLinearGradient(Math.cos(ang) * r1, Math.sin(ang) * r1, Math.cos(ang) * r2, Math.sin(ang) * r2);
     g.addColorStop(0, hexA(cfg.color || p.accentHi, a));
     g.addColorStop(1, hexA(cfg.color || p.accentHi, 0));
