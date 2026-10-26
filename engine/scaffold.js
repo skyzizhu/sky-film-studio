@@ -65,6 +65,36 @@ function drawSubtitle(ctx, t) {
   });
 }
 
+// ---------- 进度轨：无时间轴的片自动填底（拍刻度 + 进度 + 游标） ----------
+function drawProgressRail(ctx, t) {
+  const p = PAL();
+  const dur = FILM_META.duration || 60;
+  const a = seg(t, 1.5, 2.0) * (1 - seg(t, dur - 2.2, dur - 1.2));
+  if (a <= 0) return;
+  const y = H - 76;
+  const x0 = Math.round(W * 0.17), x1 = Math.round(W * 0.83);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.strokeStyle = hexA(p.cream, 0.14); ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, p.accentDeep); g.addColorStop(1, p.accentHi);
+  ctx.strokeStyle = g; ctx.lineWidth = 3.5;
+  const fx = x0 + (x1 - x0) * clamp01(t / dur);
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(fx, y); ctx.stroke();
+  ctx.lineWidth = 1.6;
+  for (const b of (FILM_META.beats || [])) {
+    const bx = x0 + (x1 - x0) * clamp01(b.start / dur);
+    ctx.strokeStyle = t >= b.start ? hexA(p.accent, 0.75) : hexA(p.cream, 0.22);
+    ctx.beginPath(); ctx.moveTo(bx, y - 7); ctx.lineTo(bx, y + 7); ctx.stroke();
+  }
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = hexA(p.accentHi, 0.9);
+  ctx.beginPath(); ctx.arc(fx, y, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
 function drawTopTitle(ctx, t) {
   if (!FILM_META.title) return;
   const at = (FILM_META.chrome && FILM_META.chrome.titleAt) || 1.7;
@@ -108,6 +138,7 @@ function drawFrame(t) {
 
   drawTopTitle(ctx, t);
   if (window.FILM && window.FILM.timeline) timelineN(ctx, t, window.FILM.timeline);
+  else drawProgressRail(ctx, t);   // 无时间轴的片用进度轨填底部，避免字幕带下大片空白
   drawSubtitle(ctx, t);
 
   drawDust(ctx, t, { alpha: 0.85 });
