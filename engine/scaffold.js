@@ -52,16 +52,11 @@ function drawSubtitle(ctx, t) {
   const lines = [];
   for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
   const subY = (window.FILM && window.FILM.timeline) || progressOn() ? H - 160 : H - 92;   // 底部无轨/轴时字幕贴底补位
-  const topY = subY - (lines.length - 1) * 46;
-  ctx.save();
-  const g = ctx.createLinearGradient(0, topY - 56, 0, topY + 34);
-  g.addColorStop(0, "rgba(5,4,2,0)"); g.addColorStop(1, "rgba(5,4,2,0.5)");
-  ctx.fillStyle = g; ctx.fillRect(0, topY - 56, W, 90);
-  ctx.restore();
+  // 不用全宽衬底带（会形成横向分割感）：只给文字本身加深色投影
   lines.forEach((ln, i) => {
-    txt(ctx, ln, W / 2, subY - (lines.length - 1 - i) * 46, {
-      size: 37, weight: 600, alpha: a, ls: 3, glow: 8, glowColor: "rgba(0,0,0,0.9)"
-    });
+    const y = subY - (lines.length - 1 - i) * 46;
+    txt(ctx, ln, W / 2, y, { size: 37, weight: 600, alpha: a * 0.85, ls: 3, glow: 18, glowColor: "rgba(0,0,0,0.95)" });
+    txt(ctx, ln, W / 2, y, { size: 37, weight: 600, alpha: a, ls: 3 });
   });
 }
 
