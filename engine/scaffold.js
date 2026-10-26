@@ -30,6 +30,7 @@ async function bootScaffold() {
   try { CUES = await (await fetch("audio/cues.json")).json(); } catch (e) { CUES = null; }
   if (window.__fontsReady) await window.__fontsReady;
   await document.fonts.ready;
+  if (window.initIcons) initIcons();   // 图标路径采样（确定性）
   window.__ready = true;
 }
 
@@ -118,6 +119,9 @@ function drawFrame(t) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
   bgBase(ctx);
+  // 主题氛围层（背景元素，比主角低一档对比度）；film.json decor:false 可关
+  const decorFn = (window.DECOR || {})[TH.key];
+  if (decorFn && FILM_META.decor !== false) decorFn(ctx, t);
 
   const beats = (FILM_META.beats || []).slice().sort((a2, b2) => a2.start - b2.start);
   if (beats.length && window.FILM && window.FILM.scenes) {
@@ -139,6 +143,15 @@ function drawFrame(t) {
     }
   }
 
+  // 拍首转场（film.json wipe: true|bands/ink/bar/scan；盖场景不盖字幕）
+  if (FILM_META.wipe && window.beatWipe && beats.length) {
+    let cur = null;
+    for (const b of beats) if (t >= b.start) cur = b;
+    if (cur && cur !== beats[0] && t - cur.start < 0.6) {
+      const def = { history: "ink", code: "scan", news: "bar", finance: "bar", tech: "bands", default: "bands" }[TH.key] || "bands";
+      beatWipe(ctx, t, t - cur.start, { at: 0, dur: 0.5, mode: FILM_META.wipe === true ? def : FILM_META.wipe });
+    }
+  }
   if (window.FILM && window.FILM.frame) window.FILM.frame(ctx, t);   // 装饰边框（chrome 层，不随 punch 缩放）
   drawTopTitle(ctx, t);
   if (window.FILM && window.FILM.timeline) timelineN(ctx, t, window.FILM.timeline);

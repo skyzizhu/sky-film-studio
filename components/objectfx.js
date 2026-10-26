@@ -72,8 +72,9 @@ function _pathLen(pts) {
 /* 画一个实物：各子路径按总弧长顺序逐笔描出（"被画出来/被连接"）
    cfg: { id, x, y, s=1, at, dur=0.7, color?, lw=4, glow?, order="seq" } */
 function drawObj(ctx, t, l, cfg) {
-  const paths = OBJECTS[cfg.id];
-  if (!paths) throw new Error(`objectfx: 未知实物 ${cfg.id}（可用：${Object.keys(OBJECTS).join("/")}）`);
+  // 优先手绘件；否则查图标库（lucide 137+，键名见 components/icons.js）
+  const paths = OBJECTS[cfg.id] || (window.ICON_PATHS && window.ICON_PATHS[cfg.id]);
+  if (!paths) throw new Error(`objectfx: 未知实物 ${cfg.id}；手绘件 ${Object.keys(OBJECTS).length} 种 / 图标 ${Object.keys(window.ICON_PATHS || {}).length} 个，键名见 icons.js`);
   const p = PAL();
   const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.7));
   if (u <= 0) return;

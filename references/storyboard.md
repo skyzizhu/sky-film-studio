@@ -36,13 +36,23 @@
 | 金句/结尾 | `charFloat` | 逐字浮出，stagger 0.05s |
 | 数字落定 | `numCounter`（内置微弹） | 落定那刻=口播说出数值那刻，宁早勿晚最多早 1 帧 |
 
-**实物动画（components/objectfx.js，`drawObj` 逐笔描出 0.7s）**
-口播名词 → 实物件：备案/资质→`seal`/`stamp`；发布/完成→`flag`；想法→`lightbulb`；
-增长/上升→`chartUp`/`rocket`；安全/防护→`shield`；时间/期限→`clock`/`calendar`；
-钱/费用→`coin`；用户/人群→`person`；网络/AI/关系→`network`；数据→`db`；文档/条款→`doc`；
-沟通/客服→`bubble`；代码→`code`；云服务→`cloud`；加密/权限→`lock`/`key`；调研→`magnifier`；
-产品/界面→`phone`；流程归档→`folder`；机械/系统→`gear`。
-讲"变化/转换"用 `shapeMorph`（circle→rect→triangle）；证据感用 `tornCard`（撕边+胶带）。
+**实物动画（components/objectfx.js `drawObj` 逐笔描出）**
+实物来源两层：**手绘件**（seal/stamp/chartUp/person/db/doc/bubble/code/cloud/lock/key/magnifier/phone/folder/gear/flag…本地坐标大笔触）+ **图标库**（`icons.js`，lucide 137 个专业矢量线稿，键名即英文单词）。
+图标库常用映射（口播名词 → 图标键名）：
+想法→`lightbulb`；增长→`trending-up`/`rocket`；安全→`shield`/`shield-check`；时间→`clock`/`timer`/`hourglass`；
+钱→`coins`/`wallet`/`credit-card`/`banknote`；用户→`users`/`user-check`；网络/AI→`network`/`bot`/`brain`/`cpu`；
+数据→`database`/`server`/`hard-drive`；文档→`file-text`/`scroll`/`clipboard`/`book-open`；沟通→`message-circle`/`megaphone`/`bell`；
+科技→`code`/`terminal`/`wifi`/`smartphone`；法律→`scale`/`gavel`；医疗→`stethoscope`/`pill`/`heart-pulse`/`dna`；
+交通→`car`/`plane`/`train-front`/`ship`；建筑→`building`/`landmark`/`castle`/`home`/`store`；教育→`graduation-cap`/`book`/`pen-tool`；
+自然→`mountain`/`tree-pine`/`leaf`/`sun`/`moon`/`flame`/`droplet`/`snowflake`；成就→`trophy`/`medal`/`crown`/`award`/`star`/`gem`；
+新闻→`newspaper`/`mic`/`camera`/`video`；全球→`globe`/`map`/`compass`；警告→`alert-triangle`/`zap`/`siren`；礼物→`gift`/`package`。
+图标密集细节多，建议 `s:1.2–1.8, lw:3–3.5, dur:0.6–0.9`；手绘件适合大场景 `s:2+`。
+讲"变化/转换"用 `shapeMorph`；证据感用 `tornCard`。
+
+**冲击特效（components/fx.js，落点叠加增强"冲击感"）**
+`shockwave`（双环冲击波，砸入/落定配）、`sparks`（粒子飞射，可定向 spread）、`speedlines`（全屏速度线，转折/快推）、
+`rays`（放射光，权威/神迹感）。拍首转场：film.json `"wipe": true|bands|ink|bar|scan`（主题默认：tech=bands 斜切色带、
+history=ink 墨晕、code=scan 扫描线、news/finance=bar 横推；盖场景不盖字幕）。
 
 **动效语义（每种动效都在说话）**：outExpo=带着意图到达；spring=活的/落地；drawOn=被画出/被连接；
 stagger=它们是一组；hold=这很重要读它；punch=事件发生了。

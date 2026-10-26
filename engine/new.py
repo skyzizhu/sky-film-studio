@@ -35,6 +35,10 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/components/datafx.js"></script>
 <script src="vendor/components/mockups.js"></script>
 <script src="vendor/themes.js"></script>
+<script src="vendor/decor.js"></script>
+<script src="vendor/icons.js"></script>
+<script src="vendor/components/iconlib.js"></script>
+<script src="vendor/components/fx.js"></script>
 <script src="data.js"></script>
 <script src="storyboard.js"></script>
 <script src="vendor/scaffold.js"></script>
@@ -159,9 +163,11 @@ def main():
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
     shutil.copy(SKILL / "engine" / "scaffold.js", proj / "vendor" / "scaffold.js")
-    for f in ["base", "datafx", "mockups", "textfx", "objectfx"]:
+    for f in ["base", "datafx", "mockups", "textfx", "objectfx", "iconlib", "fx"]:
         shutil.copy(SKILL / "components" / f"{f}.js", proj / "vendor" / "components" / f"{f}.js")
     shutil.copy(SKILL / "themes" / "themes.js", proj / "vendor" / "themes.js")
+    shutil.copy(SKILL / "themes" / "decor.js", proj / "vendor" / "decor.js")
+    shutil.copy(SKILL / "components" / "icons.js", proj / "vendor" / "icons.js")
     (proj / "index.html").write_text(INDEX_HTML.replace("__NAME__", args.name), encoding="utf-8")
     sb = STORYBOARD.replace("__THEME__", args.theme)
     for k2, v2 in sb_vals.items():
