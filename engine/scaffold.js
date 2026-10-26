@@ -51,7 +51,7 @@ function drawSubtitle(ctx, t) {
   const cpl = Math.max(12, Math.min(28, Math.floor((W - 140) / 39)));
   const lines = [];
   for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
-  const subY = H - 160;   // 字幕略靠下，仍避开时间轴
+  const subY = (window.FILM && window.FILM.timeline) || progressOn() ? H - 160 : H - 92;   // 底部无轨/轴时字幕贴底补位
   const topY = subY - (lines.length - 1) * 46;
   ctx.save();
   const g = ctx.createLinearGradient(0, topY - 56, 0, topY + 34);
@@ -65,7 +65,15 @@ function drawSubtitle(ctx, t) {
   });
 }
 
-// ---------- 进度轨：无时间轴的片自动填底（拍刻度 + 进度 + 游标） ----------
+// ---------- 底部占用判定：timeline > 进度轨 > 字幕贴底 ----------
+function progressOn() {
+  if (window.FILM && window.FILM.timeline) return false;
+  if (FILM_META.progress === true) return true;
+  if (FILM_META.progress === false) return false;
+  return (FILM_META.duration || 60) >= 50 && (FILM_META.beats || []).length >= 5;
+}
+
+// ---------- 进度轨：拍刻度 + 进度 + 游标 ----------
 function drawProgressRail(ctx, t) {
   const p = PAL();
   const dur = FILM_META.duration || 60;
@@ -138,7 +146,7 @@ function drawFrame(t) {
 
   drawTopTitle(ctx, t);
   if (window.FILM && window.FILM.timeline) timelineN(ctx, t, window.FILM.timeline);
-  else drawProgressRail(ctx, t);   // 无时间轴的片用进度轨填底部，避免字幕带下大片空白
+  else if (progressOn()) drawProgressRail(ctx, t);   // progress:false（情绪/故事/金句型）不画轨，字幕自动贴底
   drawSubtitle(ctx, t);
 
   drawDust(ctx, t, { alpha: 0.85 });

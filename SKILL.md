@@ -61,7 +61,7 @@ Every film must be **watchable without explanation, truthful in every number, an
 
 新建项目：`python3 $S/engine/new.py <dir> --name 片名 --theme tech`（vendor 自带，项目自包含可 zip 复现）。
 
-chrome 自动适配：字幕/顶栏锚定画布；**storyboard 配了 timeline 用 timelineN，没配则 scaffold 自动画进度轨**（拍刻度+渐变进度+游标）填底，不留空白带。
+chrome 自动适配（底部占用优先级：**timeline > 进度轨 > 字幕贴底**）：配了 timeline 用 timelineN；否则按 film.json `progress` 决定是否画进度轨（`true/false/缺省自动`：自动=时长≥50s 且拍数≥5）；两者皆无时字幕自动下移贴底（H-92）补位。**情绪/故事/品牌/金句型、≤45s 短片应显式 `progress:false`**（进度条破坏沉浸），流程/教程/章节旅程型设 `true`。
 
 ## Pipeline（照此执行，顺序不换）
 
