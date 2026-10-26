@@ -14,7 +14,7 @@ Every film must be **watchable without explanation, truthful in every number, an
 1. **时长边界**：30s ≤ 时长 ≤ 300s。用户要超出边界，先协商收敛（砍内容或拆集），不得默默照做。
 2. **数字唯一来源**：画面与字幕出现的一切数字只允许来自该片的 `data.js`，且必须先逐条 WebSearch 核实、写明来源；核实不了的数字不进 data.js、不进字幕——改写文稿绕开它。
 3. **确定性**：画面完全由 t 决定。禁 `Date.now()`、无种子随机、`requestAnimationFrame`；随机一律 `mulberry32(seed)`。同一 t 渲染两次逐像素一致。
-4. **字幕-口播强同步**：字幕窗口必须取自 `audio/cues.json`（逐句起止），不许手拍时间。模式 D（用户录音）先用 `voice.py import` 探测句段生成 cues，再排分镜。
+4. **字幕-口播强同步**：字幕窗口必须取自 `audio/cues.json`（逐句起止），不许手拍时间。模式 D（用户录音）先用 `voice.py import` 探测句段生成 cues，再排分镜。**字幕烧在画面帧里：cues 任何变更（place/改稿）后，重混音之外必须 `render.py --full` 重渲全片**，否则字幕停留在旧时间轴。
 5. **时长由口播驱动**：先合成语音拿句级时长 → 量化到节拍网格（BPM 来自主题）→ 分镜与 BGM 小节数自动推导。不用语速硬凑固定时长；确需拟合时用 `voice.py say --fit`（±10% 内）。
 6. **静帧自查 ≥2 轮**：每轮 `render.py --keys` 出关键帧+动画中间态 → 拼图 → 看图（文字遮挡/压盖/裁切/乱码/曝光）→ 修复；通过后才全片渲染。终检再抽帧拼总览图。
 7. **音频规格**：BGM/SFX 一律 Python 合成（无版权风险）；口播段 BGM 自动 duck；总线峰值 ≤ -1dB；结尾完整乐句淡出，不拦腰截断。

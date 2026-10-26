@@ -379,7 +379,7 @@ def cmd_place(args):
             s0 = before["sentences"][si]; s1 = after["sentences"][si]
             print(f"{b['id']:<5}{s0['start']:>8.2f}{s1['start']:>8.2f}{b['start']:>8.2f}{s1['end'] - b['end']:>9.2f}s")
     print(f"✓ 口播已贴到小节网格（lead={args.lead}s）→ audio/cues.json 已重写")
-    print("  下一步：audio.py build 重新混音（画面帧无需重渲）")
+    print("  下一步（顺序不能换）：audio.py build 重混音 → render.py --full 重渲全片（字幕烧在帧里，必须重渲）→ ffmpeg 合成")
 
 
 def cmd_status(args):

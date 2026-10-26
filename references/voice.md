@@ -18,7 +18,7 @@
 **小节网格是唯一主时钟。** 音频若按"自然时长+间隙"排、画面按"向上取整整小节"排，两套时钟的差会**逐拍累积**（敦煌片实测片尾口播比画面早 11.6 秒）。规则：
 
 1. `plan` 在量化 beats 后**自动重写 cues.json**：每句起点 = 所在拍起点 + lead（默认 0.35s，画面入场动画 0.1–0.3s 略先于声音）。
-2. **手改 film.json 的 beats 后必须重跑 `voice.py place --project <film>`**（同样的落位逻辑），再 `audio.py build` 重混音——画面帧不用重渲。
+2. **手改 film.json 的 beats 后必须重跑 `voice.py place --project <film>`**（同样的落位逻辑），然后**按顺序**：`audio.py build` 重混音 → **`render.py --full` 重渲全片**（⚠ 字幕是渲染时烧进帧里的，cues 变了帧就必须重渲，否则字幕停在旧时间轴）→ ffmpeg 合成。
 3. 字幕与 duck 读同一份 cues，自动跟随。验证：每句 |拍起点+lead − 句起点| = 0，句末 ≤ 拍末。
 
 ## 四路来源
