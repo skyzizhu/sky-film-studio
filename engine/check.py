@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """sky-film-studio · check.py —— 自查
   sheet  --project <dir> [--n 4]   checks/key_*.jpg 拼大图（960×540/格）
-  audio  --project <dir>           mix.wav 分段 RMS / 峰值 / 淡出校验"""
+  audio  --project <dir>           mix.wav 分段 RMS / 峰值 / 淡出校验
+  edges  --project <dir> [--thr 32] [--every 15]  低阈值四边扫描（抓弱透明元素被裁）"""
 import argparse, glob, subprocess, sys
 
 
@@ -59,8 +60,30 @@ def cmd_audio(args):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["sheet", "audio"])
+    ap.add_argument("cmd", choices=["sheet", "audio", "edges"])
     ap.add_argument("--project", default=".")
     ap.add_argument("--n", type=int, default=4)
+    ap.add_argument("--thr", type=int, default=32)
+    ap.add_argument("--every", type=int, default=15)
     args = ap.parse_args()
+    if args.cmd == "edges":
+        import glob as _g, os as _os
+        import numpy as _np
+        from PIL import Image as _Im
+        _os.chdir(args.project)
+        frames = sorted(_g.glob("frames/f*.jpg"))
+        if not frames:
+            raise SystemExit("先 render.py --full")
+        bad = 0
+        for f in frames[::args.every]:
+            a = _np.asarray(_Im.open(f).convert("L"), _np.float32)
+            h, w = a.shape
+            hits = [nm for nm, band in [("上", a[:26, :]), ("下", a[h-26:, :]), ("左", a[:, :26]), ("右", a[:, w-26:])]
+                    if float((band > args.thr).mean()) > 0.02]
+            if hits:
+                bad += 1
+                if bad <= 6:
+                    print(f"⚠ {f} {'/'.join(hits)}")
+        print(f"✓ 低阈值({args.thr})四边扫描 {len(frames[::args.every])} 帧全清" if bad == 0 else f"✗ {bad} 帧弱元素贴边")
+        raise SystemExit(0 if bad == 0 else 1)
     (cmd_sheet if args.cmd == "sheet" else cmd_audio)(args)

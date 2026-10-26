@@ -96,14 +96,14 @@ function stepIntro(ctx, t, l, idx, nameStr, color) {
   const a = seg(l, 0.05, 0.45);
   if (a <= 0) return;
   ctx.save(); ctx.globalAlpha = 0.06 * a;
-  txt(ctx, String(idx).padStart(2, "0"), 86, 152, { size: 230, weight: 700, align: "left", baseline: "middle", ls: -4 });
+  txt(ctx, String(idx).padStart(2, "0"), 200, 210, { size: 230, weight: 700, align: "left", baseline: "middle", ls: -4 });  // punch 安全：z=1.2 后仍在画内
   ctx.restore();
   const aN = seg(l, 0.12, 0.5);
-  txt(ctx, `第 ${idx} 步`, 150, 118, { size: 25, color: color || p.accent, align: "left", alpha: aN * 0.92, ls: 8 });
+  txt(ctx, `第 ${idx} 步`, 250, 168, { size: 25, color: color || p.accent, align: "left", alpha: aN * 0.92, ls: 8 });
   const fn2 = fitText(ctx, nameStr, W - 420, 44);
   const riseN = (1 - MO.outExpo(MO.seg(l, 0.12, 0.45))) * 22;      // 步骤名槽里升起
-  txt(ctx, fn2.text, 150, 180 + riseN, { size: fn2.size, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
-  rule(ctx, 152, 152 + 300 * aN, 208, 0.5, 2);
+  txt(ctx, fn2.text, 250, 228 + riseN, { size: fn2.size, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
+  rule(ctx, 252, 252 + 300 * aN, 256, 0.5, 2);
 }
 
 /* N 节点时间轴。cfg: { x0=330, x1=1590, y=1008, starts:[秒], doneAt, items:[{label}], showAt=1.95, fadeAt } */
