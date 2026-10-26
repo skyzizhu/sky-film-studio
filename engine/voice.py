@@ -154,6 +154,39 @@ def parse_narration(path):
     return sents
 
 
+
+
+def trim_silence(path, thr=0.008, keep=0.05):
+    """裁掉 TTS 首尾静音，让 cue 起点=真实开口点（幂等）。
+    火山 TTS 每句自带 0.1~0.3s 前置静音，不裁则句级 lead 有 ±0.2s 抖动。"""
+    import numpy as np, subprocess, tempfile, pathlib as _pl
+    path = _pl.Path(path)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", "16000",
+                          "-f", "s16le", "-"], capture_output=True).stdout
+    if not raw:
+        return ffprobe_duration(path)
+    x = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
+    sr = 16000
+    win = int(sr * 0.02)
+    if len(x) < win * 3:
+        return ffprobe_duration(path)
+    rms = np.sqrt((x[:len(x) // win * win].reshape(-1, win) ** 2).mean(axis=1))
+    dur = len(x) / sr
+    i0 = next((i for i, r in enumerate(rms) if r > thr), None)
+    i1 = next((i for i in range(len(rms) - 1, -1, -1) if rms[i] > thr), None)
+    if i0 is None or i1 is None or (i1 - i0 + 1) * 0.02 < 0.3:
+        return dur   # 整段近静音或太短：不动
+    a = max(0.0, i0 * 0.02 - keep)
+    b = min(dur, (i1 + 1) * 0.02 + keep)
+    if a < 0.02 and b > dur - 0.02:
+        return dur   # 已经干净：不动（幂等）
+    tmp = _pl.Path(tempfile.mkstemp(suffix=".wav")[1])
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(path), "-ss", f"{a:.3f}",
+                    "-to", f"{b:.3f}", "-c:a", "pcm_s16le", str(tmp)], check=True)
+    tmp.replace(path)
+    return ffprobe_duration(path)
+
+
 def cmd_say(args):
     proj = pathlib.Path(args.project).resolve()
     nar = proj / "narration.txt"
@@ -187,7 +220,7 @@ def cmd_say(args):
                 volc_synthesize(s["text"], speaker, out, speech_rate=args.speech_rate)
             else:
                 system_say(s["text"], out)
-        dur = ffprobe_duration(out)
+        dur = trim_silence(out)
         cues["sentences"].append({"idx": i, "text": s["text"], "role": s["role"],
                                   "file": f"audio/sent_{i:03d}.wav",
                                   "start": round(t_cur, 3), "end": round(t_cur + dur, 3)})
