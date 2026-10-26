@@ -51,7 +51,7 @@ function drawSubtitle(ctx, t) {
   const cpl = Math.max(12, Math.min(28, Math.floor((W - 140) / 39)));
   const lines = [];
   for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
-  const subY = H - 190;
+  const subY = H - 160;   // 字幕略靠下，仍避开时间轴
   const topY = subY - (lines.length - 1) * 46;
   ctx.save();
   const g = ctx.createLinearGradient(0, topY - 56, 0, topY + 34);
