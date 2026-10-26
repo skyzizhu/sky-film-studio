@@ -6,6 +6,18 @@
 // =====================================================================
 "use strict";
 window.ICON_PATHS = {};
+window.ICON_FILL_PATHS = {};
+
+function _closed(pts) {
+  if (pts.length < 3) return false;
+  const a2 = pts[0], b2 = pts[pts.length - 1];
+  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(3, _polyLen(pts) * 0.03);
+}
+function _polyLen(pts) {
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return L;
+}
 
 function initIcons() {
   if (!window.ICONS) return 0;
@@ -35,6 +47,32 @@ function initIcons() {
       svg.removeChild(p);
     }
     if (polys.length) { window.ICON_PATHS[name] = polys; n++; }
+  }
+  svg.remove();
+  // 实心双色集（phosphor duotone，按填充设计）
+  if (window.ICONS_FILL) {
+    for (const name of Object.keys(window.ICONS_FILL)) {
+      const arr = [];
+      for (const q of window.ICONS_FILL[name]) {
+        const p2 = document.createElementNS(svgNS, "path");
+        p2.setAttribute("d", q.d);
+        svg.appendChild(p2);
+        try {
+          const L = p2.getTotalLength();
+          if (L >= 0.5) {
+            const steps = Math.max(2, Math.ceil(L / 2.4));
+            const pts = [];
+            for (let i = 0; i <= steps; i++) {
+              const g = p2.getPointAtLength(L * i / steps);
+              pts.push([(g.x / 256 - 0.5) * 100, (g.y / 256 - 0.5) * 100]);
+            }
+            arr.push({ pts, base: !!q.base });
+          }
+        } catch (e) { }
+        svg.removeChild(p2);
+      }
+      if (arr.length) window.ICON_FILL_PATHS[name] = arr;
+    }
   }
   svg.remove();
   return n;

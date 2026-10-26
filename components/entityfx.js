@@ -31,6 +31,11 @@ function strokePathsStatic(ctx, paths, cfg) {
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    if (_isClosed(pts)) {                              // 闭合形填充（实心感）
+      ctx.closePath();
+      ctx.fillStyle = hexA(PAL().accentDeep, 0.45);
+      ctx.fill();
+    }
     ctx.stroke();
   }
   ctx.restore();

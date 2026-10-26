@@ -71,10 +71,67 @@ function _pathLen(pts) {
 
 /* 画一个实物：各子路径按总弧长顺序逐笔描出（"被画出来/被连接"）
    cfg: { id, x, y, s=1, at, dur=0.7, color?, lw=4, glow?, order="seq" } */
+function _tracePts(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+}
+function _isClosed(pts) {
+  if (pts.length < 3) return false;
+  const a2 = pts[0], b2 = pts[pts.length - 1];
+  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(3, _pathLen(pts) * 0.03);
+}
+
+/* 实心双色渲染（phosphor duotone）：按序渐显填充——base 层深色打底、detail 层主色成形 */
+function drawFillIcon(ctx, t, l, cfg) {
+  const p = PAL();
+  const layers = window.ICON_FILL_PATHS[cfg.id];
+  const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.8));
+  if (u <= 0) return;
+  const s = cfg.s || 1.5;
+  ctx.save();
+  ctx.translate(cfg.x, cfg.y); ctx.scale(s, s);
+  if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.55); ctx.shadowBlur = cfg.glow; }
+  const n = layers.length, each = 1 / Math.max(1, n);
+  for (let i = 0; i < n; i++) {
+    const a2 = MO.clamp01((u - i * each) / Math.max(0.12, each * 0.7));
+    if (a2 <= 0) break;
+    const q = layers[i];
+    ctx.globalAlpha = a2;
+    _tracePts(ctx, q.pts);
+    ctx.closePath();
+    ctx.fillStyle = q.base ? hexA(p.accentDeep, 0.55) : p.accent;
+    ctx.fill();
+    if (!q.base) {                                    // 细勾边提清晰度
+      ctx.strokeStyle = hexA(p.accentHi, 0.5);
+      ctx.lineWidth = 1.2 / s;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawObj(ctx, t, l, cfg) {
-  // 优先手绘件；否则查图标库（lucide 137+，键名见 components/icons.js）
+  // 优先手绘件；否则图标库（lucide 线稿 / phosphor 实心双色）
   const paths = OBJECTS[cfg.id] || (window.ICON_PATHS && window.ICON_PATHS[cfg.id]);
-  if (!paths) throw new Error(`objectfx: 未知实物 ${cfg.id}；手绘件 ${Object.keys(OBJECTS).length} 种 / 图标 ${Object.keys(window.ICON_PATHS || {}).length} 个，键名见 icons.js`);
+  const fills = window.ICON_FILL_PATHS && window.ICON_FILL_PATHS[cfg.id];
+  if (!paths && !fills) throw new Error(`objectfx: 未知实物 ${cfg.id}；手绘件 ${Object.keys(OBJECTS).length} 种 / 图标 ${Object.keys(window.ICON_PATHS || {}).length} 个，键名见 icons.js`);
+  // 默认实心双色（cfg.style:"line" 强制线稿）
+  if (fills && (cfg.style || "duotone") !== "line" && !OBJECTS[cfg.id]) {
+    drawFillIcon(ctx, t, l, cfg);
+    const doneAt = cfg.at + (cfg.dur || 0.8);
+    if (l > doneAt) {
+      const k = MO.land(l, doneAt, 0.04);
+      if (k > 1.001) {
+        ctx.save(); ctx.globalAlpha = 0.22; ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = PAL().accentHi; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cfg.x, cfg.y, 62 * (cfg.s || 1.5), 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    return;
+  }
+  if (!paths) { drawFillIcon(ctx, t, l, cfg); return; }
   const p = PAL();
   const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.7));
   if (u <= 0) return;
@@ -88,11 +145,23 @@ function drawObj(ctx, t, l, cfg) {
   ctx.lineWidth = (cfg.lw || 4) / s;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.7); ctx.shadowBlur = cfg.glow; }
+  let cum = 0;
   for (const pts of paths) {
     if (budget <= 0) break;
     const L = _pathLen(pts);
     const frac = Math.min(1, budget / Math.max(0.001, L));
-    budget -= L;
+    // 闭合子路径描完后填充（手绘件实心化）
+    if (frac >= 1 && _isClosed(pts) && (cfg.style || "duotone") !== "line") {
+      const fa = Math.min(1, (budget - L) / 46);
+      if (fa > 0) {
+        ctx.save();
+        ctx.globalAlpha = fa * 0.42;
+        ctx.fillStyle = p.accentDeep;
+        _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+    budget -= L; cum += L;
     if (frac <= 0) continue;
     ctx.beginPath();
     const nFull = Math.max(1, Math.floor((pts.length - 1) * frac));

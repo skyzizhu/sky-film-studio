@@ -37,6 +37,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/themes.js"></script>
 <script src="vendor/decor.js"></script>
 <script src="vendor/icons.js"></script>
+<script src="vendor/icons-fill.js"></script>
 <script src="vendor/components/iconlib.js"></script>
 <script src="vendor/components/fx.js"></script>
 <script src="vendor/components/entities.js"></script>
@@ -170,6 +171,7 @@ def main():
     shutil.copy(SKILL / "themes" / "themes.js", proj / "vendor" / "themes.js")
     shutil.copy(SKILL / "themes" / "decor.js", proj / "vendor" / "decor.js")
     shutil.copy(SKILL / "components" / "icons.js", proj / "vendor" / "icons.js")
+    shutil.copy(SKILL / "components" / "icons-fill.js", proj / "vendor" / "icons-fill.js")
     (proj / "index.html").write_text(INDEX_HTML.replace("__NAME__", args.name), encoding="utf-8")
     sb = STORYBOARD.replace("__THEME__", args.theme)
     for k2, v2 in sb_vals.items():
