@@ -22,6 +22,36 @@
 | `sfx` | `[[t_rel, kind, gain]]`，kind 见 pipeline.md |
 | `note` | 画面三层描述（前/中/背景）+ 数据动效 |
 
+## 每拍动效选配（内容表现力核心，v0.3 起）
+
+每拍**至少 1 个文字动效或 1 个实物动画**，一屏一个焦点，落点对齐口播/小节线：
+
+**文字动效（components/textfx.js）**
+| 场景 | 用 | 要点 |
+|---|---|---|
+| 核心词/主词（≤4 字） | `kineticWord` | 踩口播重音砸入（弹簧过冲），落定后不动 |
+| 强调关键词 | `keywordMark`（marker 荧光笔/underline/circle） | 字出现后 0.15–0.5s 再刷；marker 先画字后画笔 |
+| 辅句/标签/清单标题 | `textRise` | 槽里升起（高级感默认），逐行 stagger 0.06s |
+| 引文/命令/代码 | `typeOn` | 26 字/秒，光标 2Hz 闪 |
+| 金句/结尾 | `charFloat` | 逐字浮出，stagger 0.05s |
+| 数字落定 | `numCounter`（内置微弹） | 落定那刻=口播说出数值那刻，宁早勿晚最多早 1 帧 |
+
+**实物动画（components/objectfx.js，`drawObj` 逐笔描出 0.7s）**
+口播名词 → 实物件：备案/资质→`seal`/`stamp`；发布/完成→`flag`；想法→`lightbulb`；
+增长/上升→`chartUp`/`rocket`；安全/防护→`shield`；时间/期限→`clock`/`calendar`；
+钱/费用→`coin`；用户/人群→`person`；网络/AI/关系→`network`；数据→`db`；文档/条款→`doc`；
+沟通/客服→`bubble`；代码→`code`；云服务→`cloud`；加密/权限→`lock`/`key`；调研→`magnifier`；
+产品/界面→`phone`；流程归档→`folder`；机械/系统→`gear`。
+讲"变化/转换"用 `shapeMorph`（circle→rect→triangle）；证据感用 `tornCard`（撕边+胶带）。
+
+**动效语义（每种动效都在说话）**：outExpo=带着意图到达；spring=活的/落地；drawOn=被画出/被连接；
+stagger=它们是一组；hold=这很重要读它；punch=事件发生了。
+
+**脉冲节奏硬规则（禁匀速慢推）**：运动动在事件上——停住 → 快推/砸入 → 停住。
+场景级快推写在 film.json `punches: [[at, dur, k]]`（0.28s 推 20% 后停）；`beatKick: true` 开拍点呼吸。
+入场 0.3–0.4s、退场 0.18s（`MO.exitFx` 统一语言）、落定后停 ≥0.5s；主词停留 ≥0.5s、辅句 ≥1.0s。
+同一时刻只让一个东西入场；先结构、后数据、最后标注；颜色=概念（语义色 ≤4 种）。
+
 ## 文字→组件映射（写 storyboard.js 时按稿选件）
 
 | 稿件里出现 | 组件 | 备注 |

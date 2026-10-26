@@ -68,8 +68,11 @@ function numCounter(ctx, t, l, cfg) {
     ctx.font = FONT(600, numSize * 0.44);
     const wUnit = ctx.measureText(d.unit).width;
     const x0 = x - (wNum + 12 + wUnit) / 2;
+    const scN = MO.land(l, at + 0.55, 0.12);           // 数字落定微弹
+    ctx.save(); ctx.translate(x, y); ctx.scale(scN, scN); ctx.translate(-x, -y);
     txt(ctx, shown, x0 + wNum / 2, y, { size: numSize, weight: 700, baseline: "middle", gradient: true, alpha: fade, glow: 20 });
     txt(ctx, d.unit, x0 + wNum + 12 + wUnit / 2, y + 16, { size: numSize * 0.44, weight: 600, baseline: "middle", color: p.accent, alpha: fade });
+    ctx.restore();
     const aLab = seg(prog, 0.55, 1) * fade;
     const flL = fitText(ctx, d.label, Math.min(460, W - 120), 30);
     txt(ctx, flL.text, x, y + numSize * 0.62, { size: flL.size, color: p.creamDim, ls: 4, alpha: aLab });
@@ -98,7 +101,8 @@ function stepIntro(ctx, t, l, idx, nameStr, color) {
   const aN = seg(l, 0.12, 0.5);
   txt(ctx, `第 ${idx} 步`, 150, 118, { size: 25, color: color || p.accent, align: "left", alpha: aN * 0.92, ls: 8 });
   const fn2 = fitText(ctx, nameStr, W - 420, 44);
-  txt(ctx, fn2.text, 150, 180, { size: fn2.size, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
+  const riseN = (1 - MO.outExpo(MO.seg(l, 0.12, 0.45))) * 22;      // 步骤名槽里升起
+  txt(ctx, fn2.text, 150, 180 + riseN, { size: fn2.size, weight: TH.fonts.titleWeight || 600, align: "left", color: color || p.cream, alpha: aN, ls: 10, glow: 10 });
   rule(ctx, 152, 152 + 300 * aN, 208, 0.5, 2);
 }
 
@@ -133,7 +137,8 @@ function timelineN(ctx, t, cfg) {
       const g = ctx.createRadialGradient(x, y, 0, x, y, 13);
       g.addColorStop(0, p.accentHi); g.addColorStop(1, p.accentDeep);
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(x, y, 9.5, 0, Math.PI * 2); ctx.fill();
+      const rr = Math.max(0.5, 9.5 * Math.min(1.18, Math.max(0, MO.spring(Math.min(0.35, Math.max(0, t - starts[i])), 3, 9))));  // 节点点亮弹出
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
       if (isActive) {
         const pu = 0.5 + 0.5 * Math.sin(t * 5);
         ctx.save(); ctx.globalCompositeOperation = "lighter";
@@ -190,11 +195,12 @@ function checkList(ctx, t, l, cfg) {
     const y = cfg.y + 124 + i * rowH;
     const bA = seg(l, at - 0.18, at);
     if (bA <= 0) return;
+    const dy = (1 - MO.outCubic(MO.seg(l, at - 0.05, at + 0.25))) * 14;   // 逐条微升起
     ctx.strokeStyle = hexA(p.accent, 0.6 * bA); ctx.lineWidth = 1.6;
-    rrect(ctx, cfg.x + 48, y - 17, 34, 34, 7); ctx.stroke();
-    checkMark(ctx, cfg.x + 65, y, 26, seg(l, at, at + 0.35));
+    rrect(ctx, cfg.x + 48, y + dy - 17, 34, 34, 7); ctx.stroke();
+    checkMark(ctx, cfg.x + 65, y + dy, 26, seg(l, at, at + 0.35));
     const ft = fitText(ctx, s, cfg.w - 160, 29);
-    txt(ctx, ft.text, cfg.x + 110, y + 1, { size: ft.size, align: "left", baseline: "middle", alpha: bA, ls: 3 });
+    txt(ctx, ft.text, cfg.x + 110, y + dy + 1, { size: ft.size, align: "left", baseline: "middle", alpha: bA, ls: 3 });
   });
 }
 

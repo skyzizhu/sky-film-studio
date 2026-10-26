@@ -28,7 +28,10 @@ INDEX_HTML = """<!DOCTYPE html>
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
 <script src="vendor/lib.js"></script>
+<script src="vendor/motion.js"></script>
 <script src="vendor/components/base.js"></script>
+<script src="vendor/components/textfx.js"></script>
+<script src="vendor/components/objectfx.js"></script>
 <script src="vendor/components/datafx.js"></script>
 <script src="vendor/components/mockups.js"></script>
 <script src="vendor/themes.js"></script>
@@ -154,8 +157,9 @@ def main():
                        __FPX0__=320, __FPX1__=1600, __FPY__=830)
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
+    shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
     shutil.copy(SKILL / "engine" / "scaffold.js", proj / "vendor" / "scaffold.js")
-    for f in ["base", "datafx", "mockups"]:
+    for f in ["base", "datafx", "mockups", "textfx", "objectfx"]:
         shutil.copy(SKILL / "components" / f"{f}.js", proj / "vendor" / "components" / f"{f}.js")
     shutil.copy(SKILL / "themes" / "themes.js", proj / "vendor" / "themes.js")
     (proj / "index.html").write_text(INDEX_HTML.replace("__NAME__", args.name), encoding="utf-8")

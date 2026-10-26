@@ -91,7 +91,19 @@ function drawFrame(t) {
     let beat = beats[0];
     for (const b of beats) if (t >= b.start) beat = b;
     const fn = window.FILM.scenes[beat.scene];
-    if (fn) fn(ctx, t, t - beat.start, beat);
+    if (fn) {
+      // 场景级脉冲：停 → 0.28s 快推 → 停（film.json punches: [[at, dur?, k?]]，可省略）
+      let z = 1;
+      for (const pu of (FILM_META.punches || []))
+        z = Math.max(z, MO.punch(t, pu[0], pu[1] || 0.28, pu[2] || 0.2));
+      if (FILM_META.beatKick) z *= MO.beatKick(t, FILM_META.bpm || 100);
+      if (z > 1.0005) {
+        ctx.save();
+        ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+        fn(ctx, t, t - beat.start, beat);
+        ctx.restore();
+      } else fn(ctx, t, t - beat.start, beat);
+    }
   }
 
   drawTopTitle(ctx, t);
