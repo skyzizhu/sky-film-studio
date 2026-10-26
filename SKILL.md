@@ -71,7 +71,7 @@ Every film must be **watchable without explanation, truthful in every number, an
    字幕每行字数、顶栏/字幕/时间轴锚点全部随画幅自适应；窄画幅（宽<1280）时间轴自动切
    紧凑模式（只显节点序号+当前步骤名）。竖屏内容布局见 storyboard.md「竖屏指南」。
 2. **内容**：A→调研写稿；B→用户稿断句（每句一行）；含数字主张一律逐条 WebSearch 核实 → 写 `data.js`（含来源）。
-3. **语音与时长**：`python3 $S/engine/voice.py say --project <film>` 逐句合成出 `cues.json`；`voice.py plan --project <film>` 生成节拍化 beats 草案（含 hook 前置小节），据此写 `film.json`。C 模式跳过，直接按目标时长排 beats。
+3. **语音与时长**：`voice.py say` 逐句合成出 `cues.json`；`voice.py plan` 生成节拍化 beats 草案（含 hook 前置小节）并**自动把口播贴到小节网格**（重写 cues，句子起点=拍起点+0.35s），据此写 `film.json`。**手改过 beats（边界/sfx/句子分组）后必须重跑 `voice.py place`**——小节网格是唯一主时钟，音频/字幕/duck 全读同一份 cues，音画漂移由此归零。C 模式跳过语音，直接按目标时长排 beats。
 4. **分镜**：按 [references/storyboard.md](references/storyboard.md) 逐拍做**关键词/实物提取**（每拍 1–2 个核心词 + 1 个核心实物，一屏一焦点），选文字动效（kineticWord/keywordMark/textRise/typeOn/charFloat）与实物动画（objectfx 逐笔描出）；前/中/背景三层、每章 ≥1 数据动效、结尾落人心一句；写 `storyboard.js`（数字只从 data.js 读）。运动遵守脉冲节奏（停→快推→停，禁匀速慢推），落点对齐口播与小节线。
 5. **静帧自查**：`render.py --project <film> --keys` → 看图 → 修复，≥2 轮；再 `--full` 全片导帧。
 6. **音频**：`python3 $S/engine/audio.py build --project <film>`（能量曲线跟 beats、口播 duck、SFX 事件表来自 film.json）→ `check.py audio` 验 RMS/峰值。

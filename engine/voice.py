@@ -5,8 +5,10 @@
       逐句合成 narration.txt → audio/sent_XXX.wav + audio/cues.json
   import --project <dir> --audio 录音 --text 文稿.txt
       能量 VAD 切句（给文稿按字数比例对齐）→ cues.json
-  plan --project <dir> [--bpm 100] [--target 7.2]
-      cues → 小节线量化 beats 草案（stdout + film_beats_draft.json）"""
+  plan --project <dir> [--bpm 100] [--target 7.2] [--lead 0.35]
+      cues → 小节线量化 beats 草案 + 口播自动贴到网格（重写 cues.json）
+  place --project <dir> [--lead 0.35] [--gap 0.45]
+      film.json 的 beats 手工编辑后重跑：口播重新贴网格，消除音画漂移"""
 import argparse, base64, json, os, pathlib, subprocess, sys, uuid
 
 HOST = "https://openspeech.bytedance.com"
@@ -284,6 +286,67 @@ def cmd_plan(args):
     (proj / "film_beats_draft.json").write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(draft, ensure_ascii=False, indent=1)[:2200])
     print(f"→ film_beats_draft.json：{len(beats)} 拍 / {total_bars} 小节 / {t:.1f}s（并进 film.json 后补 sfx/ending_fade）")
+    # 自动把口播贴到网格（若 film.json 已存在则以它为准，改完 beats 后再跑 place）
+    draft_film = {"beats": beats}
+    (proj / "_draft_film.json").write_text(json.dumps(draft_film, ensure_ascii=False), encoding="utf-8")
+    if (proj / "film.json").is_file():
+        _place_on_grid(proj, lead=args.lead)
+        print("✓ cues.json 已按拍网格重写（plan 自动落位）")
+    else:
+        import shutil as _sh
+        _sh.copy(proj / "_draft_film.json", proj / "film.json")
+        _place_on_grid(proj, lead=args.lead)
+        print("✓ 已生成 film.json 草稿并落位（补 title/theme/sfx 后再跑一次 place）")
+    (proj / "_draft_film.json").unlink(missing_ok=True)
+
+
+
+
+def _place_on_grid(proj, lead=0.35, gap=0.45, quiet=False):
+    """把每句口播重新落位到 film.json 的拍网格上（拍起点+lead）。
+    小节网格是唯一主时钟：音频、字幕、duck 全读重写后的 cues，漂移归零。"""
+    film = json.loads((proj / "film.json").read_text(encoding="utf-8"))
+    cues = json.loads((proj / "audio" / "cues.json").read_text(encoding="utf-8"))
+    sents = cues["sentences"]
+    covered = set()
+    for b in film["beats"]:
+        t = b["start"] + lead
+        for si in b.get("sentences", []):
+            if si >= len(sents):
+                continue
+            s = sents[si]
+            dur = s["end"] - s["start"]
+            s["start"] = round(t, 3)
+            s["end"] = round(t + dur, 3)
+            t += dur + gap
+            covered.add(si)
+        if t - gap > b["end"] + 0.05 and not quiet:
+            print(f"⚠ {b['id']}: 句子组 {t - gap - b['start']:.2f}s 超出拍长 {b['end'] - b['start']:.2f}s（加小节或减句）")
+    miss = [i for i in range(len(sents)) if i not in covered]
+    if miss and not quiet:
+        print(f"⚠ 句子 {miss} 不在任何拍里，保留自然位置")
+    cues["total"] = max((s["end"] for s in sents), default=0.0)
+    cues["placed"] = True
+    cues["lead"] = lead
+    (proj / "audio" / "cues.json").write_text(json.dumps(cues, ensure_ascii=False, indent=1), encoding="utf-8")
+    return cues
+
+
+def cmd_place(args):
+    proj = pathlib.Path(args.project).resolve()
+    before = json.loads((proj / "audio" / "cues.json").read_text(encoding="utf-8"))
+    film = json.loads((proj / "film.json").read_text(encoding="utf-8"))
+    print(f"{'拍':<5}{'原起点':>8}{'新起点':>8}{'拍起点':>8}{'句末-拍末':>10}")
+    _place_on_grid(proj, lead=args.lead, gap=args.gap)
+    after = json.loads((proj / "audio" / "cues.json").read_text(encoding="utf-8"))
+    for b in film["beats"]:
+        for si in b.get("sentences", []):
+            if si >= len(after["sentences"]):
+                continue
+            s0 = before["sentences"][si]; s1 = after["sentences"][si]
+            print(f"{b['id']:<5}{s0['start']:>8.2f}{s1['start']:>8.2f}{b['start']:>8.2f}{s1['end'] - b['end']:>9.2f}s")
+    print(f"✓ 口播已贴到小节网格（lead={args.lead}s）→ audio/cues.json 已重写")
+    print("  下一步：audio.py build 重新混音（画面帧无需重渲）")
 
 
 def cmd_status(args):
@@ -304,7 +367,7 @@ def cmd_status(args):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("say", "import", "plan", "status"):
+    for name in ("say", "import", "plan", "place", "status"):
         s = sub.add_parser(name)
         s.add_argument("--project", default=".")
         s.add_argument("--config")
@@ -317,6 +380,9 @@ if __name__ == "__main__":
         if name == "import":
             s.add_argument("--audio", required=True)
             s.add_argument("--text")
+        if name in ("plan", "place"):
+            s.add_argument("--lead", type=float, default=0.35, help="句音频相对拍起点的落位提前量")
+            s.add_argument("--gap", type=float, default=0.45)
         if name == "plan":
             s.add_argument("--bpm", type=float, default=100)
             s.add_argument("--target", type=float, default=7.2)
@@ -324,4 +390,4 @@ if __name__ == "__main__":
         if name == "status":
             s.add_argument("--voice")
     args = ap.parse_args()
-    {"say": cmd_say, "import": cmd_import, "plan": cmd_plan, "status": cmd_status}[args.cmd](args)
+    {"say": cmd_say, "import": cmd_import, "plan": cmd_plan, "place": cmd_place, "status": cmd_status}[args.cmd](args)
