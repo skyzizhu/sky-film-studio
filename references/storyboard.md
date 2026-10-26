@@ -36,11 +36,35 @@
 | 金句/结尾 | `charFloat` | 逐字浮出，stagger 0.05s |
 | 数字落定 | `numCounter`（内置微弹） | 落定那刻=口播说出数值那刻，宁早勿晚最多早 1 帧 |
 
-**实体落实纪律（硬规则）**：分镜时把每句口播里的**实体名词逐个列出**（人物/景物/器物/材质），
-每个实体必须有对应的实体动画——具体名词优先用 `entities.js` 参数化实体（monk/scholar/worker/buddha/
-cliff/cliff7/mural/mural2 + drawScrollDoc 卷轴展开 + drawSand 沙粒堆积）或现场组合新实体；
-图标库只做通用词兜底。**不许"最近似图标"糊弄具体名词**（僧人≠person、画壁≠doc、文书≠file-text）。
-每个实体都要有诞生动画（逐笔描出/展开/飘落堆积/生长）。
+**实体管线（每片必做，v0.5 核心）**——识别 → 绘制 → 按性质配动画 → 时机：
+
+**① 识别（核心实体，不是全部）**：每拍把口播名词列出来，过三问——具体可画？这一拍的叙事主角？
+画了比不画强？三问全过才画。抽象名词（思想/质量/影响）、形态不明的（气旋/算法偏见）、图标不像的
+→ **不画，用文字动效承担**（kineticWord/keywordMark/shapeMorph），宁缺毋滥。
+数量纪律：每拍 ≤2 个实体，一屏一焦点。
+
+**② 绘制（优先级，现场组合是主路径）**：
+1. `entities.js` 构建器：人物族 figurePaths({hat/staff/beads/halo/arms})（monk/scholar/worker/believer）、
+   buddha、cliff/cliff7、mural、tree/bird；
+2. **现场组合新实体**（Agent 在 storyboard 里画，不是下载）：用 `_poly/_circlePts/_arcPts` 三原语组合——
+   配方：人=头圆+躯干梯形+四肢折线+职业配件；建筑=体块+屋顶三角+门窗小形；植物=干+冠弧层；
+   器物=主体形+柄/口沿/底座。写法：`OBJECTS.风车 = [_poly(...), _arcPts(...)]; drawEntity(..., {id:"风车"})`；
+3. lucide 图标库兜底——**只用于通用词**（钱/时钟/火箭/数据库），具体名词禁用最近似图标（僧人≠person）。
+
+**③ 诞生动画按实体性质匹配（drawEntity 的 motion）**：
+| 实体性质 | motion | 效果 |
+|---|---|---|
+| 人物/建筑/山体/器物/壁画 | `drawOn` | 逐笔描出（被画出/被建造） |
+| 植物/生长类（树/山/塔/庄稼） | `grow` | 底端锚点从地面长出（轻过冲+长成微晃） |
+| 漂浮类（云/气泡/羽毛/雾/魂） | `floatIn` | 淡入下落进场后持续缓浮（bobHz/bob 可调） |
+| 飞行类（鸟/飞机/火箭/箭） | `flyIn` | 画外沿贝塞尔弧线飞入（from 定方向）+尾迹+落定弹 |
+| 光/雾/抽象替代物 | `fadeIn` | 淡入微放大 |
+| 文书/卷轴/纸张 | unroll | `drawScrollDoc` 展开 |
+| 沙雪雨颗粒 | pour | `drawSand` 飘落堆积 |
+| 数字/计数 | counter | `numCounter` 落定微弹 |
+
+**④ 时机**：实体在该名词被口播念到时出现——at = 句起点 + 名词在句中的字数比例 × 句长 − 0.3s
+（宁早勿晚，最多早 1 帧/约 30ms 量级）；同一拍第二个实体错开 ≥0.6s。
 
 **实物动画（components/objectfx.js `drawObj` 逐笔描出）**
 实物来源两层：**手绘件**（seal/stamp/chartUp/person/db/doc/bubble/code/cloud/lock/key/magnifier/phone/folder/gear/flag…本地坐标大笔触）+ **图标库**（`icons.js`，lucide 137 个专业矢量线稿，键名即英文单词）。
