@@ -169,6 +169,17 @@ function drawFrame(t) {
   drawLightBand(ctx, t, TH.lightBand ?? 0.045);
   drawVignette(ctx, window.FILM && window.FILM.vignetteExtra ? window.FILM.vignetteExtra(t) : 0);
   if (!_rnd || !_rnd.post) drawGrain(ctx, Math.round(t * 30), TH.grain ?? 0.055);
+  // 回声字：钩子拍和关键拍的背景漂移轮廓字（v8 视觉纵深核心）
+  if (window.echoText && FILM_META.echo !== false) {
+    const beats2 = (FILM_META.beats || []);
+    let cur2 = null;
+    for (const b of beats2) if (t >= b.start) cur2 = b;
+    if (cur2 && cur2.echoText) {
+      echoText(ctx, t, { text: cur2.echoText, size: cur2.echoSize || 500,
+        x: cur2.echoX ?? W * 0.75, y: cur2.echoY ?? H * 0.35,
+        alpha: 0.035, phase: cur2.start });
+    }
+  }
   if (window.Renderer) Renderer.overlay(ctx, t, W, H);
 
   const ef = FILM_META.ending_fade;

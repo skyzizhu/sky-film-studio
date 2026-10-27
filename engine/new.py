@@ -30,6 +30,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <canvas id="c" width="1920" height="1080"></canvas>
 <script src="vendor/lib.js"></script>
 <script src="vendor/motion.js"></script>
+<script src="vendor/blur.js"></script>
 <script src="vendor/components/base.js"></script>
 <script src="vendor/components/textfx.js"></script>
 <script src="vendor/components/objectfx.js"></script>
@@ -174,6 +175,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
+    shutil.copy(SKILL / "engine" / "blur.js", proj / "vendor" / "blur.js")
     shutil.copy(SKILL / "engine" / "scaffold.js", proj / "vendor" / "scaffold.js")
     for f in ["base", "datafx", "mockups", "textfx", "objectfx", "iconlib", "fx", "entities", "entityfx", "paintfx", "svgicons"]:
         shutil.copy(SKILL / "components" / f"{f}.js", proj / "vendor" / "components" / f"{f}.js")
