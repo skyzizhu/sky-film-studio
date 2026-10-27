@@ -42,6 +42,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/components/fx.js"></script>
 <script src="vendor/components/entities.js"></script>
 <script src="vendor/components/entityfx.js"></script>
+<script src="vendor/components/paintfx.js"></script>
 <script src="data.js"></script>
 <script src="storyboard.js"></script>
 <script src="vendor/scaffold.js"></script>
@@ -166,7 +167,7 @@ def main():
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
     shutil.copy(SKILL / "engine" / "scaffold.js", proj / "vendor" / "scaffold.js")
-    for f in ["base", "datafx", "mockups", "textfx", "objectfx", "iconlib", "fx", "entities", "entityfx"]:
+    for f in ["base", "datafx", "mockups", "textfx", "objectfx", "iconlib", "fx", "entities", "entityfx", "paintfx"]:
         shutil.copy(SKILL / "components" / f"{f}.js", proj / "vendor" / "components" / f"{f}.js")
     shutil.copy(SKILL / "themes" / "themes.js", proj / "vendor" / "themes.js")
     shutil.copy(SKILL / "themes" / "decor.js", proj / "vendor" / "decor.js")

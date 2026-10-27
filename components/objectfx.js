@@ -136,7 +136,8 @@ function drawObj(ctx, t, l, cfg) {
   const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.7));
   if (u <= 0) return;
   const s = cfg.s || 1;
-  const lens = paths.map(_pathLen), total = lens.reduce((a2, b2) => a2 + b2, 0);
+  const drawPaths = cfg.wobble ? paths.map((p2, i2) => wobblePath(p2, (cfg.wSeed || 3) + i2, cfg.wobble, t, 6)) : paths;
+  const lens = drawPaths.map(_pathLen), total = lens.reduce((a2, b2) => a2 + b2, 0);
   let budget = total * MO.outCubic(u) * 1.0001;
   ctx.save();
   ctx.translate(cfg.x, cfg.y);
@@ -154,11 +155,13 @@ function drawObj(ctx, t, l, cfg) {
     if (frac >= 1 && _isClosed(pts) && (cfg.style || "duotone") !== "line") {
       const fa = Math.min(1, (budget - L) / 46);
       if (fa > 0) {
-        ctx.save();
-        ctx.globalAlpha = fa * 0.42;
-        ctx.fillStyle = p.accentDeep;
-        _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
-        ctx.restore();
+        if (cfg.flat) { ctx.save(); ctx.globalAlpha = fa; flatFill(ctx, pts); ctx.restore(); }
+        else {
+          ctx.save(); ctx.globalAlpha = fa * 0.42;
+          ctx.fillStyle = p.accentDeep;
+          _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
       }
     }
     budget -= L; cum += L;

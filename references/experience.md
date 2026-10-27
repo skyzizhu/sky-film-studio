@@ -52,3 +52,4 @@
 - 具体实体名词必须专用实体：敦煌被批'僧人用 person 图标、画壁/文书/沙粒没有'——加 entities.js（参数化人物/崖壁洞窟/壁画墙/坐佛/卷轴展开/沙粒堆积），验收 6/6 形象；纪律写入 storyboard.md。
 - 老项目的 index.html 不会自动带上新库：升级引擎后要检查项目脚本装载块（敦煌曾因此 decor/wipe 静默失效）。
 - 纯描边线稿在视频尺度认不清（用户："一根线似的"）：双层解法=①phosphor duotone 实心双色集（108 个，icons.py --fill，按填充设计，base 深色层+detail 主色层按序渐显）②手绘件/静态核闭合子路径自动填充（accentDeep 45%）；cfg.style:"line" 可退回线稿。验收：图标四格+敦煌僧人/崖壁全部"实心饱满一眼可辨"。
+- huashu 双库移植三招：TOON.flat 双色分面（clip→阴影→偏移高光→本色）；DG.hand 手绘抖动（密度化+值噪声，加 8fps boiling=逐帧手绘感）；DG.revealMask 笔刷揭开（之字遮罩逐行刷出）——drawObj/drawEntity 的 cfg.flat/wobble/motion:"brushReveal"，验收双色立体/手绘感/完整刷出全过。

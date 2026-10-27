@@ -59,6 +59,8 @@
 | 漂浮类（云/气泡/羽毛/雾/魂） | `floatIn` | 淡入下落进场后持续缓浮（bobHz/bob 可调） |
 | 飞行类（鸟/飞机/火箭/箭） | `flyIn` | 画外沿贝塞尔弧线飞入（from 定方向）+尾迹+落定弹 |
 | 光/雾/抽象替代物 | `fadeIn` | 淡入微放大 |
+| 壁画/画作/照片（被画出来） | `brushReveal` | 之字形笔刷从上到下刷出实体 |
+| 任意实体的质感增强 | cfg 组合 | `flat:true` 双色分面立体感；`wobble:1.6` 手绘抖动（8fps 沸腾）；可叠加 |
 | 文书/卷轴/纸张 | unroll | `drawScrollDoc` 展开 |
 | 沙雪雨颗粒 | pour | `drawSand` 飘落堆积 |
 | 数字/计数 | counter | `numCounter` 落定微弹 |

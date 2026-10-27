@@ -31,10 +31,10 @@ function strokePathsStatic(ctx, paths, cfg) {
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    if (_isClosed(pts)) {                              // 闭合形填充（实心感）
+    if (_isClosed(pts)) {                              // 闭合形：双色分面或平涂
       ctx.closePath();
-      ctx.fillStyle = hexA(PAL().accentDeep, 0.45);
-      ctx.fill();
+      if (cfg.flat) { ctx.save(); ctx.globalAlpha *= 1; flatFill(ctx, pts); ctx.restore(); }
+      else { ctx.fillStyle = hexA(PAL().accentDeep, 0.45); ctx.fill(); }
     }
     ctx.stroke();
   }
@@ -58,6 +58,7 @@ function drawEntity(ctx, t, l, cfg) {
   const m = cfg.motion || "drawOn";
 
   if (m === "drawOn") { drawObj(ctx, t, l, cfg); return; }
+  if (m === "brushReveal") { brushReveal(ctx, t, l, cfg); return; }
 
   if (m === "grow") {
     // 底端锚点生长：scaleY 0→1（轻过冲）+ scaleX 0.7→1 + 淡入
