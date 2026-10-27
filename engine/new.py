@@ -18,9 +18,10 @@ INDEX_HTML = """<!DOCTYPE html>
      加载失败自动回退 Songti SC，不会卡死渲染。 -->
 <script>
   window.__fontsReady = Promise.all([
-    ["NotoSerifSC-Regular.otf", 400], ["NotoSerifSC-SemiBold.otf", 600], ["NotoSerifSC-Bold.otf", 700]
-  ].map(([f, w]) => {
-    const ff = new FontFace("Noto Serif SC", `url(assets/fonts/${f})`, { weight: String(w) });
+    ["NotoSerifSC-Regular.otf", 400, "Noto Serif SC"], ["NotoSerifSC-SemiBold.otf", 600, "Noto Serif SC"],
+    ["NotoSerifSC-Bold.otf", 700, "Noto Serif SC"], ["LXGWWenKai-500.woff", 500, "LXGW WenKai"]
+  ].map(([f, w, fam]) => {
+    const ff = new FontFace(fam, `url(assets/fonts/${f})`, { weight: String(w) });
     return ff.load().then(x => document.fonts.add(x)).catch(() => {});
   }));
 </script>
@@ -229,14 +230,13 @@ def main():
         (proj / "film.json").write_text(json.dumps(f2, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"✓ 模板 {args.template}：改 data.js → render --full → 同款新片（{dur:.0f}s）")
     (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
-    # 优先复用本机已有字体
-    for cand in [pathlib.Path.home() / "Desktop/video-agent/wxminipro_video/assets/fonts",
-                 pathlib.Path.home() / ".agents/skills/huashu-art-motion/scripts/engine/lib/fonts"]:
-        if (cand / "NotoSerifSC-SemiBold.otf").is_file():
-            for f in ["NotoSerifSC-Regular.otf", "NotoSerifSC-SemiBold.otf", "NotoSerifSC-Bold.otf"]:
-                if (cand / f).is_file():
-                    shutil.copy(cand / f, proj / "assets" / "fonts" / f)
-            break
+    # 字体从 skill 自带 assets/fonts/ 复制（全离线，不依赖外部路径）
+    for f in ["NotoSerifSC-Regular.otf", "NotoSerifSC-SemiBold.otf", "NotoSerifSC-Bold.otf", "LXGWWenKai-500.woff"]:
+        src_f = SKILL / "assets" / "fonts" / f
+        if src_f.is_file():
+            shutil.copy(src_f, proj / "assets" / "fonts" / f)
+        else:
+            print(f"⚠ 缺字体 {f}（skill assets/fonts/ 里没有，请重新 clone）")
     print(f"✓ 项目已建：{proj}（theme={args.theme} bpm={meta[0]} 比例={vw}x{vh}）")
     print("  1) 写 narration.txt / data.js / storyboard.js / film.json")
     print("  2) voice.py say → plan → render.py --keys（自查≥2轮）→ --full")
