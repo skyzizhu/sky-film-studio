@@ -60,6 +60,8 @@ Every film must be **watchable without explanation, truthful in every number, an
 ```
 
 新建项目：`python3 $S/engine/new.py <dir> --name 片名 --theme tech`（vendor 自带，项目自包含可 zip 复现）。
+**参数化模板**：`new.py <dir> --template daily-brief|how-to|fact-card`——storyboard 固定、data.js 全变量，
+改数据→check.py auto→出同款系列片（日更号/系列化）。
 
 chrome 自动适配（底部占用优先级：**timeline > 进度轨 > 字幕贴底**）：配了 timeline 用 timelineN；否则按 film.json `progress` 决定是否画进度轨（`true/false/缺省自动`：自动=时长≥50s 且拍数≥5）；两者皆无时字幕自动下移贴底（H-92）补位。**情绪/故事/品牌/金句型、≤45s 短片应显式 `progress:false`**（进度条破坏沉浸），流程/教程/章节旅程型设 `true`。
 
@@ -81,7 +83,7 @@ chrome 自动适配（底部占用优先级：**timeline > 进度轨 > 字幕贴
 ④名词被念到时出现（宁早勿晚）。同时选文字动效（kineticWord/keywordMark/textRise/typeOn/charFloat）；
 前/中/背景三层、每章 ≥1 数据动效、结尾落人心一句；写 `storyboard.js`（数字只从 data.js 读）。
 运动遵守脉冲节奏（停→快推→停，禁匀速慢推），落点对齐口播与小节线。
-5. **静帧自查**：`render.py --project <film> --keys` → 看图 → 修复，≥2 轮；再 `--full` 全片导帧。
+5. **静帧自查**：`render.py --project <film> --keys` → 看图 → 修复，≥2 轮；可 `render.py --preview` 起实时预览工作台（拖时间轴调 draw(t)、拍/口播标尺、点击取坐标）边看边改。交付前跑 **`check.py auto`** 一键门禁（全片渲染→静帧拼图→边缘扫描→音频校验→lint，全绿才合成）。
 6. **音频**：`python3 $S/engine/audio.py build --project <film>`（能量曲线跟 beats、口播 duck、SFX 事件表来自 film.json）→ `check.py audio` 验 RMS/峰值。
 7. **合成终检**：ffmpeg 合成 mp4；抽帧总览图终检（前三秒钩子、时间轴节点、数据图表、结尾）；zip 打包交付。
 8. **回流**：本片新踩的坑/新验的招写进 `references/experience.md`（一行做法+一行证据）。

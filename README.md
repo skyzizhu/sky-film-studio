@@ -110,11 +110,17 @@ Agent 流程：能量切句探测 → 生成句级 cues（给文稿则自动对�
 > - "节奏快一点，每拍别超过 5 秒"
 > - "片尾那句改成：……"
 
-## 五、交付物
+## 五、预览工作台 / 模板 / 自检门禁
+
+- **实时预览**：`render.py --project <项目> --preview` → 浏览器拖时间轴实时调 draw(t)（金线=拍、红条=口播、点击取坐标、空格播放、←→逐帧），指哪改哪
+- **参数化模板**：`new.py <项目> --template daily-brief|how-to|fact-card`，改 data.js 变量即出同款新片（日更快讯/N 步流程/数据卡片）
+- **一键门禁**：`check.py auto --project <项目>`——全片渲染→静帧拼图→边缘扫描→音频校验→教学逻辑 lint（钩子≤3s/落点/数字来源/cues 落位），全绿才交付
+
+## 六、交付物
 
 每支片子一个自包含目录（可 zip 复现）：`mp4 成片` + `index.html/data.js/storyboard.js/film.json/narration.txt` + `audio 分轨(bgm/sfx/voice/mix)` + 静帧检查图。
 
-## 六、命令行（手动管线，Agent 内部也走这套）
+## 七、命令行（手动管线，Agent 内部也走这套）
 
 ```bash
 S=~/.agents/skills/sky-film-studio
@@ -134,7 +140,7 @@ ffmpeg -y -framerate 30 -i <项目>/frames/f%05d.jpg -i <项目>/audio/mix.wav \
 
 **铁律**：cues 任何变更（place/改稿）后，顺序是 `audio.py build → render.py --full → ffmpeg`，一步不能省（字幕烧在帧里）。
 
-## 七、工作原理（一分钟版）
+## 八、工作原理（一分钟版）
 
 - **确定性渲染**：画面=纯函数 `draw(t)`，种子随机、无 Date/rAF，同一 t 渲两次逐像素一致；Playwright 批量导帧（约 40ms/帧）。
 - **小节网格是唯一主时钟**：口播、字幕、duck、分镜、BGM 全部对齐同一网格（音画同步零漂移的根源设计）。
@@ -142,7 +148,7 @@ ffmpeg -y -framerate 30 -i <项目>/frames/f%05d.jpg -i <项目>/audio/mix.wav \
 - **主题三件套**：palette + 氛围层 + 转场，scaffold 自动装配。
 - **图标桥**：lucide SVG 路径 → 浏览器 getPointAtLength 采样 → 弧长逐笔描出。
 
-## 八、目录结构
+## 九、目录结构
 
 ```
 SKILL.md               Agent 主契约（四模式/硬规则/流程）
