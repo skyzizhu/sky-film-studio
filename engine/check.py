@@ -213,7 +213,7 @@ if __name__ == "__main__":
             # 浅色底主题（白板等）的边框/磁铁/笔托是设计元素，不算贴边
             try:
                 _theme = json.load(open('film.json')).get('theme','')
-                if _theme in ('whiteboard',):
+                if _theme in ('whiteboard', 'ink'):
                     continue
             except: pass                                   # 钩子炸开（有意全屏冲击）
             a = _np.asarray(_Im.open(f).convert("L"), _np.float32)
