@@ -62,7 +62,39 @@ def main():
     ap.add_argument("--keys", default="")
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--quality", type=float, default=0.92)
+    ap.add_argument("--preview", action="store_true", help="预览工作台：浏览器实时拖时间轴调 draw(t)")
+    ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
+
+    if args.preview:
+        import http.server as _hs, socketserver as _ss, threading as _th, pathlib as _pl, webbrowser as _wb
+        os.chdir(args.project)
+        SKILL = _pl.Path(__file__).resolve().parents[1]
+        preview_js = (SKILL / "engine" / "preview.js").read_text(encoding="utf-8")
+        base_html = _pl.Path("index.html").read_text(encoding="utf-8")
+
+        class H(_hs.SimpleHTTPRequestHandler):
+            def do_GET(self):
+                if self.path in ("/", "/index.html"):
+                    html = base_html.replace("</body>", '<script>\n' + preview_js + "\n</script></body>", 1)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(html.encode("utf-8"))
+                else:
+                    super().do_GET()
+            def log_message(self, *a):
+                pass
+
+        httpd = _ss.TCPServer(("127.0.0.1", args.port), H)
+        url = f"http://127.0.0.1:{args.port}/"
+        print(f"▶ 预览工作台：{url}（拍=金色线 · 口播=红条 · 拖动/空格/←→ · 点击取坐标；Ctrl+C 退出）")
+        try:
+            _wb.open(url)
+        except Exception:
+            pass
+        httpd.serve_forever()
+        raise SystemExit(0)
 
     pw, browser, page, httpd, dur = launch(args.project)
     try:

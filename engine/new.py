@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """sky-film-studio · new.py —— 新建影片项目（自包含，可 zip 复现）
   new.py <dir> [--name 片名] [--theme tech|history|news|code|finance|default]"""
-import argparse, pathlib, shutil
+import argparse, json, pathlib, shutil
 
 SKILL = pathlib.Path(__file__).resolve().parents[1]
 
@@ -147,6 +147,8 @@ def main():
                     choices=["tech", "history", "news", "code", "finance", "default"])
     ap.add_argument("--ratio", default="16:9",
                     help="16:9(默认)|9:16|1:1|4:3|3:4|4:5|2.35:1|W:H|WxH")
+    ap.add_argument("--template", default=None,
+                    help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
     args = ap.parse_args()
     proj = pathlib.Path(args.dir).resolve()
     proj.mkdir(parents=True, exist_ok=True)
@@ -184,6 +186,41 @@ def main():
         .replace("__W__", str(vw)).replace("__H__", str(vh)), encoding="utf-8")
     (proj / "data.js").write_text(DATA_JS, encoding="utf-8")
     (proj / "narration.txt").write_text(NARRATION, encoding="utf-8")
+    # 参数化模板：storyboard 固定 + data.js 全变量（换数据→重渲→同款新片）
+    if args.template:
+        import shutil as _sh2
+        tpl = SKILL / "templates" / args.template
+        _sh2.copy(tpl / "storyboard.js", proj / "storyboard.js")
+        _sh2.copy(tpl / "defaults.js", proj / "data.js")
+        bar = 4 * 60 / 100
+        beats = [{"id": "b0", "scene": "s0", "start": 0, "end": 1 * bar, "energy": 0.9,
+                  "sentences": [], "sfx": [[0.0, "boom", 0.85]], "note": "钩子"}]
+        if args.template == "daily-brief":
+            for i in range(3):
+                beats.append({"id": f"item{i}", "scene": "sItem", "start": beats[-1]["end"],
+                              "end": beats[-1]["end"] + 2 * bar, "energy": 0.6, "sentences": [],
+                              "sfx": [[0.3, "tick", 0.16]], "vars": {"i": i}, "note": f"条目{i+1}"})
+            beats.append({"id": "num", "scene": "sNum", "start": beats[-1]["end"], "end": beats[-1]["end"] + 2 * bar,
+                          "energy": 0.75, "sentences": [], "sfx": [[0.4, "ping", 0.2]], "note": "数字"})
+        elif args.template == "how-to":
+            for i in range(4):
+                beats.append({"id": f"step{i}", "scene": "sStep", "start": beats[-1]["end"],
+                              "end": beats[-1]["end"] + 2 * bar, "energy": 0.65, "sentences": [],
+                              "sfx": [[1.0, "chime", 0.18]], "vars": {"i": i}, "note": f"步骤{i+1}"})
+        else:
+            beats.append({"id": "main", "scene": "sMain", "start": beats[-1]["end"], "end": beats[-1]["end"] + 3 * bar,
+                          "energy": 0.8, "sentences": [], "sfx": [[0.5, "ping", 0.22]], "note": "主数字"})
+            beats.append({"id": "cmp", "scene": "sCmp", "start": beats[-1]["end"], "end": beats[-1]["end"] + 3 * bar,
+                          "energy": 0.6, "sentences": [], "sfx": [[0.5, "tick", 0.16]], "note": "对比"})
+        beats.append({"id": "end", "scene": "sEnd", "start": beats[-1]["end"], "end": beats[-1]["end"] + 4 * bar,
+                      "energy": 0.4, "sentences": [], "sfx": [[0.3, "swell", 0.2]], "note": "收尾"})
+        dur = beats[-1]["end"]
+        f2 = json.loads((proj / "film.json").read_text(encoding="utf-8"))
+        f2.update({"beats": beats, "duration": round(dur, 2), "bpm": 100,
+                   "ending_fade": [dur - 1.6, dur - 0.35], "voice": {},
+                   "title": f"模板 · {args.template}"})
+        (proj / "film.json").write_text(json.dumps(f2, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"✓ 模板 {args.template}：改 data.js → render --full → 同款新片（{dur:.0f}s）")
     (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     # 优先复用本机已有字体
     for cand in [pathlib.Path.home() / "Desktop/video-agent/wxminipro_video/assets/fonts",
