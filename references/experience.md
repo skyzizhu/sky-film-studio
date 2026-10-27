@@ -14,3 +14,4 @@
 - 等比大格拼图比密集小缩略图更适合查字；边缘亮度扫描只作提示，亮背景和合法出血会误报。
 
 验证入口：`python3 -m unittest discover -s tests`、`node tests/entities.test.js`，以及 `tests/render_smoke.py` 的浏览器/编码集成检查。前两项离线、不调用云；集成检查在临时目录生成演示片，不更改用户项目。
+- 图标辨识度差的根因：把 SVG 路径转成折线再 lineTo() 丢失了曲线光滑度和填充质量——解法是 svgicons.js 用浏览器原生 SVG 渲染（构建 SVG 字符串 → Image 对象 → ctx.drawImage()），58 个常用图标验证缓存成功；手绘件（monk/buddha/cliff）保留折线管线因为需要 wobble 毛边效果。

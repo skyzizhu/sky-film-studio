@@ -31,7 +31,8 @@ async function bootScaffold() {
   try { CUES = await (await fetch("audio/cues.json")).json(); } catch (e) { CUES = null; }
   if (window.__fontsReady) await window.__fontsReady;
   await document.fonts.ready;
-  if (window.initIcons) initIcons();   // 图标路径采样（确定性）
+  if (window.initIcons) initIcons();
+  if (window.preloadSVGIcons) preloadSVGIcons();   // 图标路径采样（确定性）
   window.__ready = true;
 }
 
