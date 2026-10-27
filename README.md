@@ -21,7 +21,7 @@
 | 事实硬规则 | 出现的每个数字先 WebSearch 逐条核实并写明来源；核实不了的不进画面 |
 | 三方强同步 | 口播音频、字幕、画面共用同一份句级 cues 和小节网格，漂移为 0（句开口=拍起点+0.35s，画面入场略先于声音） |
 | 主题系统 | 6 套视听风格（氛围层+粒子+转场+配乐调式+色板），换主题=换整套气质 |
-| 实物动画 | 137 个专业矢量线稿图标（lucide，ISC）+ 手绘大件，逐笔描出（"名词画成实物"） |
+| 实体管线 | 识别核心实体（三问筛选）→ 绘制（手绘件+图标库+现场组合）→ 按性质配诞生动画（8 种） |
 | 文字动效 | 主词砸入/槽里升起/打字机/逐字浮出/荧光笔·下划线·圈注 |
 | 冲击特效 | 冲击波/粒子飞射/速度线/放射光 + 四式拍首转场（色带/墨晕/横推/扫描线） |
 | BGM/SFX | Python 纯合成（无版权风险），能量曲线跟分镜，口播段自动 duck，峰值 -1dB |
@@ -34,11 +34,11 @@
 
 | 内容类型 | 视听风格 | 氛围与转场 | 配乐 |
 |---|---|---|---|
-| 科技 / 互联网 / AI | 近黑+暗金+青绿 | 代码雨+数据光带 / 斜切色带转场 | 小调电子 105BPM |
+| 科技 / 互联网 / AI | 近黑蓝+**电光青** | 代码雨+数据光带 / 斜切色带转场 | 小调电子 105BPM |
 | 历史 / 人文 | 宣纸暗+朱砂+墨 | 纸纹斑驳+墨晕 / 墨晕开转场 | 五声拨弦 85BPM |
-| 新闻 / 时事 | 深蓝+白+红 | 斜网格+红条+LIVE 呼吸点 / 横推 | 大调鼓点 115BPM |
+| 新闻 / 时事 | 深蓝+白+**暖橙** | 斜网格+红条+LIVE 呼吸点 / 横推 | 大调鼓点 115BPM |
 | 技术分享 / 教程 | 近黑+终端绿 | 网格+扫描亮线 / 扫描线转场 | 极简脉冲 100BPM |
-| 商业 / 财经 | 深蓝+金 | 网格+上行虚线影 / 横推 | 大调沉稳 100BPM |
+| 商业 / 财经 | 深蓝黑+**铂银** | 网格+上行虚线影 / 横推 | 大调沉稳 100BPM |
 | 通用兜底 | 暗金电影感 | 金尘 / 色带 | 小调 100BPM |
 
 ## 三、安装
@@ -132,7 +132,9 @@ python3 $S/engine/voice.py place  --project <项目>                       # 手
 python3 $S/engine/render.py --project <项目> --keys "1.5,6,..."         # 静帧自查（≥2轮）
 python3 $S/engine/render.py --project <项目> --full                     # 全片导帧
 python3 $S/engine/audio.py  build --project <项目>                      # BGM/SFX/混音
-python3 $S/engine/check.py  edges|audio|sheet --project <项目>          # 质检
+python3 $S/engine/check.py  auto --project <项目>                        # 一键门禁（全片渲染+拼图+边缘+音频+lint）
+python3 $S/engine/check.py  storyboard --project <项目>                   # 教学逻辑 lint
+python3 $S/engine/render.py --project <项目> --preview                   # 实时预览工作台
 ffmpeg -y -framerate 30 -i <项目>/frames/f%05d.jpg -i <项目>/audio/mix.wav \
   -c:v libx264 -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \
   -movflags +faststart <项目>/out/成片.mp4
@@ -153,10 +155,13 @@ ffmpeg -y -framerate 30 -i <项目>/frames/f%05d.jpg -i <项目>/audio/mix.wav \
 ```
 SKILL.md               Agent 主契约（四模式/硬规则/流程）
 engine/                lib/motion/scaffold/render/voice/audio/check/new/icons (.js/.py)
-components/            base/datafx/mockups/textfx/objectfx/fx/iconlib/icons（17+组件/特效/137图标）
+components/            base/datafx/mockups/textfx/objectfx/fx/iconlib/icons
+                       entityfx(实体管线) entities(手绘件) paintfx(双色分面/手绘抖动/笔刷)
+                       icons.js(137线稿) icons-fill.js(108实心双色)
 themes/                themes.js(6主题) + decor.js(氛围层)
+templates/             daily-brief / how-to / fact-card（参数化模板）
 references/            分镜映射/语音协议/主题规格/管线命令/经验回流
 examples/wxminipro/    已交付 60s 参考片源码（微信小程序从0到上架）
 ```
 
-第三方：图标 [lucide](https://lucide.dev)（ISC）；字体 Noto Serif SC（OFL）；其余全部自研合成。
+第三方：线稿图标 [lucide](https://lucide.dev)（ISC）；实心图标 [phosphor](https://phosphoricons.com)（MIT）；字体 Noto Serif SC（OFL）；其余全部自研合成。
