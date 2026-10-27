@@ -54,7 +54,18 @@ function drawSubtitle(ctx, t) {
   const cpl = Math.max(12, Math.min(28, Math.floor((W - 140) / 39)));
   const lines = [];
   for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
-  const subY = (window.FILM && window.FILM.timeline) || progressOn() ? H - 160 : H - 92;   // 底部无轨/轴时字幕贴底补位
+  // v8：字幕位置智能——钩子拍/关键拍往上（给排版层级让位），普通拍靠下
+  let subY;
+  const beats3 = (FILM_META.beats || []);
+  let curBeat = null;
+  for (const b of beats3) if (t >= b.start) curBeat = b;
+  if (curBeat && (curBeat.typography || curBeat.echoText)) {
+    subY = H * 0.72;    // 关键拍：字幕在中偏下（配合 typographyScale）
+  } else if ((window.FILM && window.FILM.timeline) || progressOn()) {
+    subY = H - 160;     // 有轨/轴：给轨让位
+  } else {
+    subY = H - 92;      // 默认贴底
+  }
   // 不用全宽衬底带（会形成横向分割感）：只给文字本身加深色投影
   lines.forEach((ln, i) => {
     const y = subY - (lines.length - 1 - i) * 46;
