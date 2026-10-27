@@ -11,7 +11,7 @@
    cfg: { hat: bald|bun|scholar, staff, beads, halo, arms: down|up|folded } */
 function figurePaths(cfg) {
   const P = [];
-  if (cfg.halo) P.push(_arcPts(-13, -30, 19, Math.PI * 0.55, Math.PI * 1.45, 12));   // 头光（弧）
+  if (cfg.halo) { P.push(_arcPts(-13, -30, 19, Math.PI * 0.55, Math.PI * 2.45, 16)); }   // 头光（完整环，跨 2π）
   P.push(_circlePts(0, -30, 10.5, 16));                                              // 头
   if (cfg.hat === "bun") P.push(_circlePts(0, -42, 4, 8));                           // 发髻
   if (cfg.hat === "scholar") {                                                       // 幞头（官帽）
@@ -51,7 +51,7 @@ function buddhaPaths() {
   const P = [];
   P.push(_circlePts(0, -34, 13, 18));                                                // 头
   P.push(_circlePts(0, -34, 21, 22));                                                // 头光内圈
-  P.push(_arcPts(0, -34, 28, Math.PI * 0.6, Math.PI * 1.4, 14));                     // 头光外弧
+  P.push(_arcPts(0, -34, 28, Math.PI * 0.6, Math.PI * 2.6, 20));                     // 头光外环（完整 2π）
   P.push(_arcPts(-19, -18, 12, Math.PI * 0.5, Math.PI * 1.4, 10));                   // 左肩衣纹
   P.push(_arcPts(19, -18, 12, Math.PI * 1.6, Math.PI * 0.5, 10));                    // 右肩衣纹
   P.push(_poly([[-8, -22], [-30, 20], [-26, 26], [26, 26], [30, 20], [8, -22]]));    // 身

@@ -79,7 +79,7 @@ function _tracePts(ctx, pts) {
 function _isClosed(pts) {
   if (pts.length < 3) return false;
   const a2 = pts[0], b2 = pts[pts.length - 1];
-  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(3, _pathLen(pts) * 0.03);
+  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(6, _pathLen(pts) * 0.06);
 }
 
 /* 实心双色渲染（phosphor duotone）：按序渐显填充——base 层深色打底、detail 层主色成形 */
@@ -93,9 +93,20 @@ function drawFillIcon(ctx, t, l, cfg) {
   ctx.translate(cfg.x, cfg.y); ctx.scale(s, s);
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.55); ctx.shadowBlur = cfg.glow; }
   const n = layers.length, each = 1 / Math.max(1, n);
+  // 未上色的层先画"底稿线"（低透明度描边），消除'只有半个图标'
   for (let i = 0; i < n; i++) {
     const a2 = MO.clamp01((u - i * each) / Math.max(0.12, each * 0.7));
-    if (a2 <= 0) break;
+    if (a2 > 0) continue;
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = p.accentHi; ctx.lineWidth = 1 / s;
+    ctx.beginPath();
+    layers[i].pts.forEach((q, k) => k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+    if (layers[i].base) ctx.closePath();
+    ctx.stroke();
+  }
+  for (let i = 0; i < n; i++) {
+    const a2 = MO.clamp01((u - i * each) / Math.max(0.12, each * 0.7));
+    if (a2 <= 0) continue;
     const q = layers[i];
     ctx.globalAlpha = a2;
     _tracePts(ctx, q.pts);
@@ -138,7 +149,7 @@ function drawObj(ctx, t, l, cfg) {
   const s = cfg.s || 1;
   const drawPaths = cfg.wobble ? paths.map((p2, i2) => wobblePath(p2, (cfg.wSeed || 3) + i2, cfg.wobble, t, 6)) : paths;
   const lens = drawPaths.map(_pathLen), total = lens.reduce((a2, b2) => a2 + b2, 0);
-  let budget = total * MO.outCubic(u) * 1.0001;
+  let budget = total * MO.outCubic(u) * 1.02;           // 2% 余量，防浮点截尾
   ctx.save();
   ctx.translate(cfg.x, cfg.y);
   ctx.scale(s, s);
@@ -146,25 +157,25 @@ function drawObj(ctx, t, l, cfg) {
   ctx.lineWidth = (cfg.lw || 4) / s;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.7); ctx.shadowBlur = cfg.glow; }
-  let cum = 0;
-  for (const pts of paths) {
+  // 填充时机："全部描完后整体上色"，透明度用 smoothstep 平滑（防止色块突现）
+  const fillAll = (MO.clamp01((u - 0.88) / 0.14) ** 1.6) * ((cfg.style || "duotone") !== "line" ? 1 : 0);
+  if (fillAll > 0) {
+    for (const pts of drawPaths) {
+      if (!_isClosed(pts)) continue;
+      ctx.save(); ctx.globalAlpha = fillAll;
+      if (cfg.flat) flatFill(ctx, pts);
+      else {
+        ctx.fillStyle = p.accentDeep;
+        _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  for (const pts of drawPaths) {
     if (budget <= 0) break;
     const L = _pathLen(pts);
     const frac = Math.min(1, budget / Math.max(0.001, L));
-    // 闭合子路径描完后填充（手绘件实心化）
-    if (frac >= 1 && _isClosed(pts) && (cfg.style || "duotone") !== "line") {
-      const fa = Math.min(1, (budget - L) / 46);
-      if (fa > 0) {
-        if (cfg.flat) { ctx.save(); ctx.globalAlpha = fa; flatFill(ctx, pts); ctx.restore(); }
-        else {
-          ctx.save(); ctx.globalAlpha = fa * 0.42;
-          ctx.fillStyle = p.accentDeep;
-          _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
-          ctx.restore();
-        }
-      }
-    }
-    budget -= L; cum += L;
+    budget -= L;
     if (frac <= 0) continue;
     ctx.beginPath();
     const nFull = Math.max(1, Math.floor((pts.length - 1) * frac));
@@ -175,6 +186,7 @@ function drawObj(ctx, t, l, cfg) {
       const a2 = pts[nFull], b2 = pts[nFull + 1];
       ctx.lineTo(a2[0] + (b2[0] - a2[0]) * q, a2[1] + (b2[1] - a2[1]) * q);
     }
+    if (frac >= 1 && _isClosed(pts)) ctx.closePath();   // 描线自身也闭合（补齐"缺一条边"）
     ctx.stroke();
   }
   ctx.restore();

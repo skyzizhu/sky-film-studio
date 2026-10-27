@@ -55,3 +55,4 @@
 - huashu 双库移植三招：TOON.flat 双色分面（clip→阴影→偏移高光→本色）；DG.hand 手绘抖动（密度化+值噪声，加 8fps boiling=逐帧手绘感）；DG.revealMask 笔刷揭开（之字遮罩逐行刷出）——drawObj/drawEntity 的 cfg.flat/wobble/motion:"brushReveal"，验收双色立体/手绘感/完整刷出全过。
 - news decor 顶红条 y0-4 正好在边缘检测 26px 带内（亮度 58-72 全宽 90%）——红条下移 y8-12 避开。每个 theme decor 的装饰元素都不要进 26px 边带（跟纸纹/代码雨同一规则）。
 - 高频具象词（车/飞机/房/工厂）必须手绘不用通用图标：entities.js 补 9 个构建器（car/plane/train/ship/house/factory/bridge/machine/carCharge），评测分 72→82；通用图标只做抽象概念（闪电=能量/奖杯=成就）。
+- 实体"画了半个/没画全"四根因：①arcPts 开口弧当光环用（改跨 2π 完整环）②填充逐部件闪现（改全部描完后 smoothstep 1.6 次幂整体上色）③duotone 按序渐显中间帧只有半个图标（未上色层画 18% 底稿线）④闭合判定容差 3px/3% 太严（抖动后误判开口，放宽到 6px/6%）+ budget 1.0001→1.02 浮点余量 + 描线自身 closePath 补齐末边。

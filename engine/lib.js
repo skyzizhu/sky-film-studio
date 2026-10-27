@@ -75,6 +75,14 @@ function mixHex(a, b, k) {
   return `rgb(${f(16)},${f(8)},${f(0)})`;
 }
 
+function _isClosedSafe(pts) {
+  if (!pts || pts.length < 3) return false;
+  const a = pts[0], b = pts[pts.length - 1];
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]);
+  return Math.hypot(b[0] - a[0], b[1] - a[1]) < Math.max(6, L * 0.06);   // 宽容差闭合判定
+}
+
 function rrect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();

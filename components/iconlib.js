@@ -11,7 +11,7 @@ window.ICON_FILL_PATHS = {};
 function _closed(pts) {
   if (pts.length < 3) return false;
   const a2 = pts[0], b2 = pts[pts.length - 1];
-  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(3, _polyLen(pts) * 0.03);
+  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(6, _polyLen(pts) * 0.06);   // 容差放宽：抗采样/抖动误差
 }
 function _polyLen(pts) {
   let L = 0;
