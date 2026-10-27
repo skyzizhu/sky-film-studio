@@ -18,11 +18,11 @@ window.THEMES = {
     decor: {}
   },
 
-  tech: {      // 科技/互联网：近黑 + 暗金 + 辅青绿
+  tech: {      // 科技/互联网：近黑蓝 + 电光青（冷科技，和暗底对比锐利）
     key: "tech", bpm: 105,
     palette: { bg0: "#06070a", bg1: "#0d1118", ink: "#0a0d12", cream: "#e6ecf2", creamDim: "#9fb0bd",
-      accent: "#d9b45c", accentHi: "#f6e3a8", accentDeep: "#8a6a2a", warn: "#e05a4a",
-      secondary: "#58a89b", dim: "rgba(230,236,242,0.38)", faint: "rgba(230,236,242,0.15)" },
+      accent: "#3ddbd9", accentHi: "#8af5f3", accentDeep: "#1a8a88", warn: "#e05a4a",
+      secondary: "#7ab8ff", dim: "rgba(230,236,242,0.38)", faint: "rgba(230,236,242,0.15)" },
     fonts: { serif: "Noto Serif SC", titleWeight: 600 },
     music: { mode: "minor", brightness: 0.6, arpDensity: 1.1 },
     particles: "dust", vignette: 1.05, grain: 0.05, lightBand: 0.05,
@@ -40,10 +40,10 @@ window.THEMES = {
     decor: { scrollEdge: true, paperTexture: true }
   },
 
-  news: {      // 新闻/时事：深蓝 + 白 + 红点缀
+  news: {      // 新闻/时事：深蓝 + 白 + 暖橙（紧迫感）
     key: "news", bpm: 115,
     palette: { bg0: "#050d1a", bg1: "#0a1830", ink: "#081120", cream: "#f2f5fa", creamDim: "#a8b8cc",
-      accent: "#e8b23c", accentHi: "#ffe9b0", accentDeep: "#8a6416", warn: "#d84a3a",
+      accent: "#ff8c42", accentHi: "#ffc49b", accentDeep: "#cc5a1a", warn: "#d84a3a",
       dim: "rgba(242,245,250,0.40)", faint: "rgba(242,245,250,0.15)" },
     fonts: { serif: "Noto Serif SC", titleWeight: 700 },
     music: { mode: "major", brightness: 0.65, arpDensity: 1.2 },
@@ -62,10 +62,10 @@ window.THEMES = {
     decor: { terminalChrome: true, grid: true }
   },
 
-  finance: {   // 商业/财经：深蓝 + 金
+  finance: {   // 商业/财经：深蓝黑 + 铂银（冷金属，摆脱"金色=财经"的俗套）
     key: "finance", bpm: 100,
     palette: { bg0: "#060b16", bg1: "#0c1626", ink: "#091120", cream: "#eef0e8", creamDim: "#a9b2c0",
-      accent: "#e2bd6b", accentHi: "#f8e6b5", accentDeep: "#8a6a24", warn: "#d84a3a",
+      accent: "#c8d4e8", accentHi: "#f0f5ff", accentDeep: "#6878a0", warn: "#d84a3a",
       dim: "rgba(238,240,232,0.40)", faint: "rgba(238,240,232,0.15)" },
     fonts: { serif: "Noto Serif SC", titleWeight: 700 },
     music: { mode: "major", brightness: 0.55, arpDensity: 1.0 },
