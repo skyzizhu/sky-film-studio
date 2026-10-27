@@ -146,7 +146,7 @@ def main():
     ap.add_argument("dir")
     ap.add_argument("--name", default="我的短片")
     ap.add_argument("--theme", default="default",
-                    choices=["tech", "history", "news", "code", "finance", "default"])
+                    choices=["tech", "history", "news", "code", "finance", "default", "ink", "pixel", "glitch", "whiteboard", "screencast"])
     ap.add_argument("--ratio", default="16:9",
                     help="16:9(默认)|9:16|1:1|4:3|3:4|4:5|2.35:1|W:H|WxH")
     ap.add_argument("--template", default=None,
@@ -155,7 +155,9 @@ def main():
     proj = pathlib.Path(args.dir).resolve()
     proj.mkdir(parents=True, exist_ok=True)
     meta = {"tech": (105, "minor"), "history": (85, "pentatonic"), "news": (115, "major"),
-            "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor")}[args.theme]
+            "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor"),
+            "ink": (72, "pentatonic"), "pixel": (130, "minor"), "glitch": (128, "minor"),
+            "whiteboard": (92, "major"), "screencast": (90, "minor")}[args.theme]
     vw, vh = parse_ratio(args.ratio)
     portrait = vh > vw
     # 模板坐标：横竖两套（竖屏单列居中，避开底部字幕/时间轴区）

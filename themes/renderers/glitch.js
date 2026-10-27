@@ -47,7 +47,7 @@
       for (let y = 0; y < sunR * 2; y += 8) {
         const w = Math.sqrt(sunR * sunR - (y - sunR) * (y - sunR)) * 2;
         if (w > 0) {
-          ctx.fillStyle = `rgba(255,${80 + Math.sin(y * 0.1) * 40},128,${0.3 - y / sunRR / 6})`;
+          ctx.fillStyle = `rgba(255,${80 + Math.sin(y * 0.1) * 40},128,${0.3 - y / (sunR * 2) / 6})`;
           ctx.fillRect(W / 2 - w / 2, sunY - sunR + y, w, 4);
         }
       }
@@ -70,7 +70,7 @@
       _fcCtx.clearRect(0, 0, W, H); _fcCtx.drawImage(ctx.canvas, 0, 0);
 
       // 故障量（脉冲式，大部分时间轻微，拍点爆发）
-      const burst = MO.pulse(Math.floor(t * 2) % 4 === 0 ? t : 0, 0, 1) * 8 + 2;
+      const burst = (Math.floor(t * 2) % 4 === 0 ? 6 : 2) + Math.sin(t * 8) * 2;
       const off = burst;
 
       ctx.save();
