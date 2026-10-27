@@ -337,3 +337,17 @@ function drawSand(ctx, t, l, cfg) {
   }
   ctx.restore();
 }
+
+// A reusable part-based example: the load/body keep their identity while wheels turn.
+window.ENTITIES = window.ENTITIES || {};
+window.ENTITIES.wheeledCart = {
+  bounds: {x:-56,y:-44,width:112,height:80}, anchor:{x:0,y:36},
+  palette:{body:"accentDeep",outline:"accentHi",load:"accent"},
+  parts:[
+    {id:"body",points:[[-50,-4],[50,-4],[40,20],[-40,20]],closed:true,fill:"body",stroke:"outline",z:1},
+    {id:"load",points:[[-24,-40],[24,-40],[24,-4],[-24,-4]],closed:true,fill:"load",stroke:"outline",z:0},
+    ...[-30,30].map((x,i)=>({id:`wheel${i}`,x,y:24,closed:false,fill:null,stroke:"outline",z:2,
+      paths:[_circlePts(0,0,12),_poly([[-12,0],[12,0]],false),_poly([[0,-12],[0,12]],false)],
+      pose:(t,l)=>({rot:l*2})}))
+  ]
+};

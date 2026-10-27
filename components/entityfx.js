@@ -8,7 +8,7 @@
 //   flyIn   画外飞入（鸟/飞机/火箭/箭——贝塞尔弧线+尾迹+落定弹）
 //   fadeIn  淡入（光/抽象替代物）
 //   （unroll 卷轴展开→drawScrollDoc；pour 颗粒飘落→drawSand；计数→numCounter）
-// 未知实体静默跳过（智能放弃：宁缺毋滥）。
+// 显式 omit 可省略；未知实体/动作报错，避免拼写错误静默消失。
 // 依赖 objectfx.js（OBJECTS/drawObj）与 iconlib.js（ICON_PATHS）。
 // =====================================================================
 "use strict";
@@ -21,11 +21,12 @@ function strokePathsStatic(ctx, paths, cfg) {
   ctx.translate(cfg.px ?? cfg.x, cfg.py ?? cfg.y);
   if (cfg.rot) ctx.rotate(cfg.rot);
   ctx.scale((cfg.scx ?? 1) * s, (cfg.scy ?? 1) * s);
-  ctx.globalAlpha = cfg.alpha ?? 1;
-  ctx.strokeStyle = cfg.color || p.accent;
+  ctx.globalAlpha *= cfg.alpha ?? 1;
+  ctx.strokeStyle = cfg.stroke || cfg.color || p.accent;
   ctx.lineWidth = (cfg.lw || 4) / s;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.7); ctx.shadowBlur = cfg.glow; }
+  if (cfg.fillRule) _fillCompound(ctx,paths,cfg);
   for (const pts of paths) {
     if (!pts || pts.length < 2) continue;
     ctx.beginPath();
@@ -33,25 +34,71 @@ function strokePathsStatic(ctx, paths, cfg) {
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     if (_isClosed(pts)) {                              // 闭合形：双色分面或平涂
       ctx.closePath();
-      if (cfg.flat) { ctx.save(); ctx.globalAlpha *= 1; flatFill(ctx, pts); ctx.restore(); }
-      else { ctx.fillStyle = hexA(PAL().accentDeep, 0.45); ctx.fill(); }
+      if (cfg.fillRule) { /* already filled as one compound path */ }
+      else if (cfg.fill === null || cfg.fill === false || cfg.style === "line") { /* stroke only */ }
+      else if (cfg.flat) { ctx.save(); flatFill(ctx, pts); ctx.restore(); }
+      else { ctx.fillStyle = cfg.fill || hexA(PAL().accentDeep, 0.45); ctx.fill(); }
     }
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function _pathsOf(cfg) {
-  if (cfg.paths) return cfg.paths;
-  if (OBJECTS[cfg.id]) return OBJECTS[cfg.id];
-  if (window.ICON_PATHS && window.ICON_PATHS[cfg.id]) return window.ICON_PATHS[cfg.id];
-  return null;
+function _pathsOf(cfg) { return _objectPaths(cfg); }
+window.ENTITIES = window.ENTITIES || {};
+const _PART_PATHS = new WeakMap();
+
+// Parts are optional; legacy OBJECTS paths keep working. Poses must be pure functions of t/l.
+function drawEntity(ctx, t, l, cfg) {
+  if (cfg.omit) return;
+  const entity = cfg.entity || window.ENTITIES[cfg.id];
+  if (entity) {
+    if (!Array.isArray(entity.parts)) throw new Error(`entity ${cfg.id}: 缺 parts`);
+    const action = cfg.action ? cfg.action(t, l) : {};
+    const exit = cfg.exitAt === undefined ? 1 : 1-MO.seg(l, cfg.exitAt, cfg.exitAt+(cfg.exitDur ?? .2));
+    if (exit <= 0) return;
+    ctx.save();
+    ctx.translate((cfg.x ?? 0)+(action.x ?? 0), (cfg.y ?? 0)+(action.y ?? 0));
+    ctx.rotate((cfg.rot ?? 0)+(action.rot ?? 0));
+    ctx.scale((cfg.s ?? 1)*(action.sx ?? 1), (cfg.s ?? 1)*(action.sy ?? 1));
+    ctx.globalAlpha *= exit;
+    const palette = entity.palette || {};
+    const token = value => { const mapped = palette[value] ?? value; return PAL()[mapped] ?? mapped; };
+    for (const part of [...entity.parts].sort((a,b)=>(a.z ?? 0)-(b.z ?? 0))) {
+      const pose = part.pose ? part.pose(t,l) : {};
+      const anchor = part.anchor || {x:0,y:0};
+      ctx.save();
+      ctx.translate((part.x ?? 0)+(pose.x ?? 0)+anchor.x, (part.y ?? 0)+(pose.y ?? 0)+anchor.y);
+      ctx.rotate(pose.rot ?? 0); ctx.scale(pose.sx ?? 1, pose.sy ?? 1);
+      ctx.translate(-anchor.x,-anchor.y);
+      if (!_PART_PATHS.has(part)) {
+        const paths = part.paths || [part.points];
+        _PART_PATHS.set(part, paths.map(points=>_poly(points.map(p=>[...p]),part.closed ?? points.closed)));
+      }
+      const normalized = _PART_PATHS.get(part);
+      _drawEntityMotion(ctx,t,l,{...cfg, ...part, id: undefined, entity: undefined,
+        paths: normalized, x:0, y:0, s:1, rot:0,
+        at:(cfg.at ?? 0)+(part.delay ?? 0), fill:token(part.fill), stroke:token(part.stroke),
+        motion:part.enter || cfg.enter || cfg.motion || "fadeIn"});
+      ctx.restore();
+    }
+    ctx.restore();
+    return;
+  }
+  const action = cfg.action ? cfg.action(t,l) : {};
+  const exit = cfg.exitAt === undefined ? 1 : 1-MO.seg(l,cfg.exitAt,cfg.exitAt+(cfg.exitDur ?? .2));
+  if (exit <= 0) return;
+  ctx.save(); ctx.globalAlpha *= exit;
+  _drawEntityMotion(ctx,t,l,{...cfg, x:cfg.x+(action.x ?? 0), y:cfg.y+(action.y ?? 0),
+    rot:(cfg.rot ?? 0)+(action.rot ?? 0), motion:cfg.enter || cfg.motion});
+  ctx.restore();
 }
 
 /* 实体统一入口 */
-function drawEntity(ctx, t, l, cfg) {
+function _drawEntityMotion(ctx, t, l, cfg) {
   const paths = _pathsOf(cfg);
-  if (!paths) return;                                   // 未知实体：不画（智能放弃）
+  if (!paths && window.ICON_FILL_PATHS?.[cfg.id] && (!cfg.motion || cfg.motion === "drawOn")) { drawObj(ctx,t,l,cfg); return; }
+  if (!paths) throw new Error(`未知实体 ${cfg.id}；主动省略请传 omit:true`);
   const at = cfg.at || 0, dur = cfg.dur || 0.8;
   const u = MO.seg(l, at, at + dur);
   if (u <= 0) return;
@@ -62,14 +109,15 @@ function drawEntity(ctx, t, l, cfg) {
 
   if (m === "grow") {
     // 底端锚点生长：scaleY 0→1（轻过冲）+ scaleX 0.7→1 + 淡入
-    const baseY = cfg.y + (cfg.base ?? 50) * (cfg.s || 1);
-    const sy = Math.max(0.001, MO.outBack(u, 1.2));
-    const sx = 0.7 + 0.3 * u;
-    strokePathsStatic(ctx, paths, { ...cfg, py: baseY, scy: sy, scx: sx, alpha: Math.min(1, u * 1.6) });
-    if (u >= 1) {                                        // 长成轻晃
-      const sway = Math.sin(t * 1.3) * 0.012;
-      if (sway !== 0) strokePathsStatic(ctx, paths, { ...cfg, py: baseY, scy: 1 + sway, scx: 1 - sway * 0.6, alpha: 1 });
-    }
+    const base = cfg.anchor?.y ?? cfg.base ?? Math.max(...paths.flat().map(p=>p[1]));
+    const baseX = cfg.anchor?.x ?? 0;
+    const sway = cfg.sway && u >= 1 ? Math.sin((l-at-dur)*1.3)*cfg.sway : 0;
+    const sy = Math.max(.001, MO.outBack(u,1.2))*(1+sway);
+    const sx = (.7+.3*u)*(1-sway*.6);
+    const scale = cfg.s ?? 1;
+    strokePathsStatic(ctx, paths, {...cfg,
+      px: cfg.x+baseX*scale*(1-sx), py:cfg.y+base*scale*(1-sy),
+      scy:sy, scx:sx, alpha:Math.min(1,u*1.6)});
     return;
   }
 
@@ -77,7 +125,7 @@ function drawEntity(ctx, t, l, cfg) {
     // 淡入下落进场，进场后持续缓慢上下漂浮
     const inU = MO.outCubic(u);
     const ph = cfg.ph ?? 0;
-    const bob = Math.sin(t * (cfg.bobHz ?? 1.4) + ph) * (cfg.bob ?? 6);
+    const bob = Math.sin((l-at) * (cfg.bobHz ?? 1.4) + ph) * (cfg.bob ?? 6);
     const y2 = cfg.y + 46 * (1 - inU) + (u >= 1 ? bob : bob * inU);
     strokePathsStatic(ctx, paths, { ...cfg, py: y2, scx: 0.92 + 0.08 * inU, scy: 0.92 + 0.08 * inU, alpha: inU });
     return;
@@ -93,10 +141,10 @@ function drawEntity(ctx, t, l, cfg) {
     const qy = (1 - e) * (1 - e) * p0.y + 2 * (1 - e) * e * ctrl.y + e * e * p1.y;
     const dx = 2 * (1 - e) * (ctrl.x - p0.x) + 2 * e * (p1.x - ctrl.x);
     const dy = 2 * (1 - e) * (ctrl.y - p0.y) + 2 * e * (p1.y - ctrl.y);
-    const rot = (cfg.rot !== undefined ? cfg.rot : 1) ? Math.atan2(dy, dx) * 0.35 : 0;
+    const rot = cfg.orient ? Math.atan2(dy,dx)+(cfg.headingOffset ?? 0) : (cfg.rot ?? 0);
     const settle = u >= 1 ? MO.land(l, at + dur, 0.1) : 1;
     strokePathsStatic(ctx, paths, { ...cfg, px: qx, py: qy, rot, scx: settle, scy: settle, alpha: Math.min(1, u * 2) });
-    if (u < 1) {                                         // 尾迹
+    if (cfg.trail && u < 1) {                             // 可选尾迹
       const p2 = PAL();
       ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
       for (let k = 0; k < 3; k++) {
@@ -119,6 +167,7 @@ function drawEntity(ctx, t, l, cfg) {
     strokePathsStatic(ctx, paths, { ...cfg, scx: 0.96 + 0.04 * u, scy: 0.96 + 0.04 * u, alpha: MO.outCubic(u) });
     return;
   }
+  throw new Error(`未知实体 motion: ${m}`);
 }
 
 /* ---------- 常用生长/飞行实体补充 ---------- */

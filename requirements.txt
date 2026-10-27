@@ -1,0 +1,5 @@
+# Versions used by the regression and rendering checks; ffmpeg is a system dependency.
+numpy==2.0.2
+Pillow==11.3.0
+playwright==1.58.0
+requests==2.32.3

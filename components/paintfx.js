@@ -34,6 +34,7 @@ function wobblePath(pts, seed, amp, t, per) {
     }
   }
   out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
+  out.closed = _isClosed(pts);
   return out;
 }
 
@@ -56,9 +57,9 @@ function flatFill(ctx, pts, cfg) {
 // ---------- 笔刷揭开（之字形笔触遮罩，从上往下刷出实体） ----------
 /* cfg: { paths|id, x, y, s, at, dur=1.2, rows=6, color?, lw?, flat?, wobble? } */
 function brushReveal(ctx, t, l, cfg) {
-  const paths = cfg.paths || OBJECTS[cfg.id] || (window.ICON_PATHS && window.ICON_PATHS[cfg.id]);
+  const paths = _objectPaths(cfg);
   if (!paths) return;
-  const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 1.2));
+  const u = MO.seg(l, cfg.at ?? 0, (cfg.at ?? 0) + (cfg.dur || 1.2));
   if (u <= 0) return;
   const s = cfg.s || 2, p = PAL();
   // 实体包围盒（局部坐标 → 画布）
@@ -88,16 +89,18 @@ function brushReveal(ctx, t, l, cfg) {
   ctx.translate(cfg.x, cfg.y); ctx.scale(s, s);
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.5); ctx.shadowBlur = cfg.glow; }
+  if (cfg.fillRule) _fillCompound(ctx,paths,cfg);
   for (let pts of paths) {
     if (cfg.wobble) pts = wobblePath(pts, cfg.wSeed || 3, cfg.wobble, t, 6);
     ctx.beginPath();
     pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
     if (_isClosed(pts)) {
       ctx.closePath();
-      if (cfg.flat !== false) { flatFill(ctx, pts); continue; }
-      ctx.fillStyle = hexA(p.accentDeep, 0.5); ctx.fill();
+      if (cfg.fillRule || cfg.fill === null || cfg.fill === false || cfg.style === "line") { /* stroke only */ }
+      else if (cfg.flat !== false) { flatFill(ctx, pts); continue; }
+      else { ctx.fillStyle = cfg.fill || hexA(p.accentDeep, 0.5); ctx.fill(); }
     }
-    ctx.strokeStyle = cfg.color || p.accent;
+    ctx.strokeStyle = cfg.stroke || cfg.color || p.accent;
     ctx.lineWidth = (cfg.lw || 3.5) / s;
     ctx.stroke();
   }

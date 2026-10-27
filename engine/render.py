@@ -4,10 +4,11 @@
   --project <dir> --full               全片帧   → <dir>/frames/
 内置：127.0.0.1 HTTP 服务（绕 file:// 字体 CORS）、__ready 字体门控、
 draw() 全时间轴冒烟（导帧前抓 JS 异常）。"""
-import argparse, base64, glob, http.server, os, socketserver, threading, time
+import argparse, base64, glob, http.server, os, socketserver, threading, time, math, pathlib
+from project import mark_build, timeline_errors
 
 
-def launch(project):
+def launch(project, strict_fonts=False, determinism=False):
     os.chdir(project)
     port = 8741
     while True:
@@ -27,15 +28,30 @@ def launch(project):
     vw, vh = int(_film.get("width", 1920)), int(_film.get("height", 1080))
     page = browser.new_page(viewport={"width": vw, "height": vh}, device_scale_factor=1)
     errors = []
+    resources = []
     page.on("pageerror", lambda e: errors.append(str(e)))
+    page.on("requestfailed", lambda request: resources.append(request.url))
+    page.on("response", lambda response: resources.append(response.url)
+            if response.status >= 400 and "/assets/fonts/" not in response.url and not response.url.endswith("favicon.ico") else None)
     page.goto(f"http://127.0.0.1:{port}/index.html")
-    page.wait_for_function("window.__ready === true", timeout=120000)
+    page.wait_for_function("window.__ready === true || window.__bootError", timeout=120000)
+    boot_error = page.evaluate("window.__bootError || null")
+    if boot_error: raise SystemExit(f"加载失败: {boot_error}")
+    font_errors = page.evaluate("window.__fontErrors || []")
+    if font_errors:
+        if strict_fonts: raise SystemExit(f"字体加载失败: {font_errors}")
+        print(f"⚠ 预览字体回退: {font_errors}；交付须 --strict-fonts")
+    cue_state = page.evaluate("({film:FILM_META,cues:CUES})")
+    timeline = timeline_errors(cue_state['film'],cue_state['cues'])
+    if timeline: raise SystemExit("; ".join(timeline))
     page.wait_for_timeout(300)
     dur = page.evaluate("FILM_META ? FILM_META.duration : 60")
     bad = page.evaluate("""(dur) => {
       const bad = [];
-      for (let i = 0; i <= 60; i++) {
-        const t = i * dur / 61;
+      const samples = new Set(Array.from({length:61},(_,i)=>i*dur/61));
+      for (const beat of FILM_META.beats || [])
+        for (const dt of [0,.05,.2,.5,.9]) samples.add(Math.min(dur-.001,beat.start+dt));
+      for (const t of samples) {
         try { draw(t); } catch (e) { bad.push(t.toFixed(2) + 's: ' + e.message); }
       }
       return bad;
@@ -44,9 +60,18 @@ def launch(project):
         for b in bad[:10]:
             print("JS ERROR @", b)
         raise SystemExit("draw() 冒烟测试失败")
-    if errors:
-        for e in errors[:10]:
-            print("PAGE:", e)
+    if errors or resources:
+        raise SystemExit(f"页面/必需资源错误: {errors[:10]} {resources[:10]}")
+    if determinism:
+        result = page.evaluate("""(duration)=>{
+          const times=[0.1,duration*.27,duration*.51,duration-.15];
+          const snapshot=t=>{draw(t);return document.getElementById('c').toDataURL('image/png');};
+          const expected=times.map(snapshot);
+          for (const i of [3,1,0,2,2,0,3,1]) if(snapshot(times[i])!==expected[i]) return times[i];
+          return null;
+        }""",dur)
+        if result is not None: raise SystemExit(f"确定性检查失败 @ {result}s")
+        print("✓ 同环境重复/乱序渲染像素一致")
     return pw, browser, page, httpd, dur
 
 
@@ -59,7 +84,9 @@ def save_dataurl(u, path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", required=True)
-    ap.add_argument("--keys", default="")
+    ap.add_argument("--keys", nargs="?", const="auto", default="")
+    ap.add_argument("--strict-fonts", action="store_true")
+    ap.add_argument("--determinism", action="store_true")
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--quality", type=float, default=0.92)
     ap.add_argument("--preview", action="store_true", help="预览工作台：浏览器实时拖时间轴调 draw(t)")
@@ -96,11 +123,17 @@ def main():
         httpd.serve_forever()
         raise SystemExit(0)
 
-    pw, browser, page, httpd, dur = launch(args.project)
+    project_path = pathlib.Path(args.project).resolve()
+    pw, browser, page, httpd, dur = launch(project_path,args.strict_fonts,args.determinism)
     try:
         if args.keys:
             os.makedirs("checks", exist_ok=True)
-            for tt in [float(x) for x in args.keys.split(",") if x.strip()]:
+            keys = args.keys
+            if keys == "auto":
+                beats = page.evaluate("FILM_META.beats")
+                keys = ",".join(str(round(b['start']+(b['end']-b['start'])*q,3)) for b in beats for q in (.05,.2,.5,.9))
+            for old in glob.glob("checks/key_*.jpg"): os.remove(old)
+            for tt in [float(x) for x in keys.split(",") if x.strip()]:
                 t0 = time.time()
                 u = page.evaluate(
                     "t => { draw(t); return document.getElementById('c').toDataURL('image/jpeg', %r); }"
@@ -112,7 +145,7 @@ def main():
             for f in glob.glob("frames/*.jpg"):
                 os.remove(f)
             fps = page.evaluate("(FILM_META && FILM_META.fps) || 30")
-            total = int(dur * fps) + 1
+            total = math.ceil(dur * fps)
             dt = 1.0 / fps
             done = 0
             t0 = time.time()
@@ -125,6 +158,7 @@ def main():
                 done += n
                 el = time.time() - t0
                 print(f"frames {done}/{total}  {el:.0f}s  eta {el/done*(total-done):.0f}s", flush=True)
+            mark_build(project_path,"frames",count=total,fps=fps,duration=dur)
     finally:
         browser.close(); pw.stop(); httpd.shutdown()
 

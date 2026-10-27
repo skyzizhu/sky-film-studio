@@ -7,10 +7,11 @@
 "use strict";
 
 // ---------- 路径工具 ----------
-function _poly(pts) { return pts; }
+function _poly(pts, closed) { if (closed !== undefined) pts.closed = closed; return pts; }
 function _circlePts(cx, cy, r, n = 28) {
   const a = [];
   for (let i = 0; i <= n; i++) a.push([cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * r, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * r]);
+  a.closed = true;
   return a;
 }
 function _arcPts(cx, cy, r, a0, a1, n = 14) {
@@ -63,10 +64,34 @@ window.OBJECTS = {
 };
 
 // ---------- 弧长逐笔描出 ----------
-function _pathLen(pts) {
-  let L = 0;
-  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-  return L;
+const _PATH_METRICS = new WeakMap();
+function _pathMetrics(pts) {
+  // Registered paths are immutable; create a new array when editing geometry.
+  if (_PATH_METRICS.has(pts)) return _PATH_METRICS.get(pts);
+  const cumulative = [0];
+  for (let i = 1; i < pts.length; i++)
+    cumulative.push(cumulative[i-1] + Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
+  const result = { cumulative, total: cumulative[cumulative.length-1] || 0 };
+  _PATH_METRICS.set(pts, result);
+  return result;
+}
+function _pathLen(pts) { return _pathMetrics(pts).total; }
+function _objectPaths(cfg) {
+  return cfg.paths || OBJECTS[cfg.id] || (window.ICON_PATHS && window.ICON_PATHS[cfg.id]);
+}
+function _tracePartial(ctx, pts, length) {
+  if (!pts.length) return;
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  const { cumulative } = _pathMetrics(pts);
+  for (let i = 1; i < pts.length && length > cumulative[i-1]; i++) {
+    if (length >= cumulative[i]) ctx.lineTo(pts[i][0], pts[i][1]);
+    else {
+      const q = (length-cumulative[i-1]) / (cumulative[i]-cumulative[i-1]);
+      ctx.lineTo(pts[i-1][0]+(pts[i][0]-pts[i-1][0])*q,
+                 pts[i-1][1]+(pts[i][1]-pts[i-1][1])*q);
+      break;
+    }
+  }
 }
 
 /* 画一个实物：各子路径按总弧长顺序逐笔描出（"被画出来/被连接"）
@@ -77,27 +102,46 @@ function _tracePts(ctx, pts) {
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
 }
 function _isClosed(pts) {
+  if (pts.closed !== undefined) return pts.closed;
   if (pts.length < 3) return false;
-  const a2 = pts[0], b2 = pts[pts.length - 1];
-  return Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) < Math.max(6, _pathLen(pts) * 0.06);
+  const a = pts[0], b = pts[pts.length-1];
+  return Math.hypot(a[0]-b[0], a[1]-b[1]) < 1e-5;
+}
+
+// Compound fills preserve holes; explicit closed metadata wins over geometry inference.
+function _fillCompound(ctx,paths,cfg,alpha=1) {
+  if (cfg.fill === null || cfg.fill === false || cfg.style === "line") return;
+  const closed = paths.filter(_isClosed);
+  if (!closed.length) return;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  ctx.beginPath();
+  for (const pts of closed) {
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.closePath();
+  }
+  ctx.fillStyle=cfg.fill || PAL().accentDeep;
+  ctx.fill(cfg.fillRule || "nonzero");
+  ctx.restore();
 }
 
 /* 实心双色渲染（phosphor duotone）：按序渐显填充——base 层深色打底、detail 层主色成形 */
 function drawFillIcon(ctx, t, l, cfg) {
   const p = PAL();
   const layers = window.ICON_FILL_PATHS[cfg.id];
-  const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.8));
+  const u = MO.seg(l, cfg.at ?? 0, (cfg.at ?? 0) + (cfg.dur || 0.8));
   if (u <= 0) return;
   const s = cfg.s || 1.5;
   ctx.save();
   ctx.translate(cfg.x, cfg.y); ctx.scale(s, s);
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.55); ctx.shadowBlur = cfg.glow; }
+  const baseAlpha = ctx.globalAlpha;
   const n = layers.length, each = 1 / Math.max(1, n);
   // 未上色的层先画"底稿线"（低透明度描边），消除'只有半个图标'
   for (let i = 0; i < n; i++) {
     const a2 = MO.clamp01((u - i * each) / Math.max(0.12, each * 0.7));
     if (a2 > 0) continue;
-    ctx.globalAlpha = 0.18;
+    ctx.globalAlpha = baseAlpha * 0.18;
     ctx.strokeStyle = p.accentHi; ctx.lineWidth = 1 / s;
     ctx.beginPath();
     layers[i].pts.forEach((q, k) => k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
@@ -108,7 +152,7 @@ function drawFillIcon(ctx, t, l, cfg) {
     const a2 = MO.clamp01((u - i * each) / Math.max(0.12, each * 0.7));
     if (a2 <= 0) continue;
     const q = layers[i];
-    ctx.globalAlpha = a2;
+    ctx.globalAlpha = baseAlpha * a2;
     _tracePts(ctx, q.pts);
     ctx.closePath();
     ctx.fillStyle = q.base ? hexA(p.accentDeep, 0.55) : p.accent;
@@ -124,14 +168,14 @@ function drawFillIcon(ctx, t, l, cfg) {
 
 function drawObj(ctx, t, l, cfg) {
   // 优先手绘件；否则图标库（lucide 线稿 / phosphor 实心双色）
-  const paths = OBJECTS[cfg.id] || (window.ICON_PATHS && window.ICON_PATHS[cfg.id]);
+  const paths = _objectPaths(cfg);
   const fills = window.ICON_FILL_PATHS && window.ICON_FILL_PATHS[cfg.id];
   if (!paths && !fills) throw new Error(`objectfx: 未知实物 ${cfg.id}；手绘件 ${Object.keys(OBJECTS).length} 种 / 图标 ${Object.keys(window.ICON_PATHS || {}).length} 个，键名见 icons.js`);
   // 默认实心双色（cfg.style:"line" 强制线稿）
-  if (fills && (cfg.style || "duotone") !== "line" && !OBJECTS[cfg.id]) {
+  if (!cfg.paths && fills && (cfg.style || "duotone") !== "line" && !OBJECTS[cfg.id]) {
     drawFillIcon(ctx, t, l, cfg);
-    const doneAt = cfg.at + (cfg.dur || 0.8);
-    if (l > doneAt) {
+    const doneAt = (cfg.at ?? 0) + (cfg.dur || 0.8);
+    if (cfg.landRing && l > doneAt) {
       const k = MO.land(l, doneAt, 0.04);
       if (k > 1.001) {
         ctx.save(); ctx.globalAlpha = 0.22; ctx.globalCompositeOperation = "lighter";
@@ -144,28 +188,30 @@ function drawObj(ctx, t, l, cfg) {
   }
   if (!paths) { drawFillIcon(ctx, t, l, cfg); return; }
   const p = PAL();
-  const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.7));
+  const u = MO.seg(l, cfg.at ?? 0, (cfg.at ?? 0) + (cfg.dur || 0.7));
   if (u <= 0) return;
   const s = cfg.s || 1;
   const drawPaths = cfg.wobble ? paths.map((p2, i2) => wobblePath(p2, (cfg.wSeed || 3) + i2, cfg.wobble, t, 6)) : paths;
   const lens = drawPaths.map(_pathLen), total = lens.reduce((a2, b2) => a2 + b2, 0);
-  let budget = total * MO.outCubic(u) * 1.02;           // 2% 余量，防浮点截尾
+  let budget = total * MO.outCubic(u);           // 精确弧长预算，段内插值
   ctx.save();
   ctx.translate(cfg.x, cfg.y);
+  if (cfg.rot) ctx.rotate(cfg.rot);
   ctx.scale(s, s);
-  ctx.strokeStyle = cfg.color || p.accent;
+  ctx.strokeStyle = cfg.stroke || cfg.color || p.accent;
   ctx.lineWidth = (cfg.lw || 4) / s;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (cfg.glow) { ctx.shadowColor = hexA(p.accentHi, 0.7); ctx.shadowBlur = cfg.glow; }
   // 填充时机："全部描完后整体上色"，透明度用 smoothstep 平滑（防止色块突现）
-  const fillAll = (MO.clamp01((u - 0.88) / 0.14) ** 1.6) * ((cfg.style || "duotone") !== "line" ? 1 : 0);
-  if (fillAll > 0) {
+  const fillAll = (MO.clamp01((u - 0.86) / 0.14) ** 1.6) * ((cfg.style || "duotone") !== "line" ? 1 : 0);
+  if (fillAll > 0 && cfg.fillRule) _fillCompound(ctx,drawPaths,cfg,fillAll);
+  if (fillAll > 0 && !cfg.fillRule) {
     for (const pts of drawPaths) {
-      if (!_isClosed(pts)) continue;
-      ctx.save(); ctx.globalAlpha = fillAll;
+      if (!_isClosed(pts) || cfg.fill === null || cfg.fill === false) continue;
+      ctx.save(); ctx.globalAlpha *= fillAll;
       if (cfg.flat) flatFill(ctx, pts);
       else {
-        ctx.fillStyle = p.accentDeep;
+        ctx.fillStyle = cfg.fill || p.accentDeep;
         _tracePts(ctx, pts); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
@@ -178,25 +224,18 @@ function drawObj(ctx, t, l, cfg) {
     budget -= L;
     if (frac <= 0) continue;
     ctx.beginPath();
-    const nFull = Math.max(1, Math.floor((pts.length - 1) * frac));
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i <= nFull; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    if (nFull < pts.length - 1) {
-      const q = (pts.length - 1) * frac - nFull;
-      const a2 = pts[nFull], b2 = pts[nFull + 1];
-      ctx.lineTo(a2[0] + (b2[0] - a2[0]) * q, a2[1] + (b2[1] - a2[1]) * q);
-    }
+    _tracePartial(ctx, pts, Math.min(L, L * frac));
     if (frac >= 1 && _isClosed(pts)) ctx.closePath();   // 描线自身也闭合（补齐"缺一条边"）
     ctx.stroke();
   }
   ctx.restore();
   // 描完的落定微弹
-  const doneAt = cfg.at + (cfg.dur || 0.7);
-  if (l > doneAt) {
+  const doneAt = (cfg.at ?? 0) + (cfg.dur || 0.7);
+  if (cfg.landRing && l > doneAt) {
     const k = MO.land(l, doneAt, 0.04);
     if (k > 1.001) {
       ctx.save(); ctx.translate(cfg.x, cfg.y); ctx.scale(k, k);
-      ctx.strokeStyle = cfg.color || p.accent; ctx.lineWidth = (cfg.lw || 4) / s / k;
+      ctx.strokeStyle = cfg.stroke || cfg.color || p.accent; ctx.lineWidth = (cfg.lw || 4) / s / k;
       ctx.globalAlpha = 0.25;
       ctx.beginPath(); ctx.arc(0, 0, 56 * s, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
@@ -214,13 +253,13 @@ function _shapePts(kind, n = 40) {
 }
 function shapeMorph(ctx, t, l, cfg) {
   const p = PAL();
-  const u = MO.seg(l, cfg.at, cfg.at + (cfg.dur || 0.8));
+  const u = MO.seg(l, cfg.at ?? 0, (cfg.at ?? 0) + (cfg.dur || 0.8));
   if (u <= 0) return;
   const A = _shapePts(cfg.from || "circle"), B = _shapePts(cfg.to || "rect");
   const s = cfg.s || 1.4;
   ctx.save();
   ctx.translate(cfg.x, cfg.y); ctx.scale(s, s);
-  ctx.strokeStyle = cfg.color || p.accent; ctx.lineWidth = (cfg.lw || 4) / s;
+  ctx.strokeStyle = cfg.stroke || cfg.color || p.accent; ctx.lineWidth = (cfg.lw || 4) / s;
   ctx.lineJoin = "round";
   ctx.beginPath();
   for (let i = 0; i < A.length; i++) {
@@ -235,7 +274,7 @@ function shapeMorph(ctx, t, l, cfg) {
    cfg: { x, y, w, h, at, tape=true, fill?, seed=7 } */
 function tornCard(ctx, t, l, cfg) {
   const p = PAL();
-  const u = MO.outBack(MO.seg(l, cfg.at, cfg.at + 0.4));
+  const u = MO.outBack(MO.seg(l, cfg.at ?? 0, cfg.at + 0.4));
   if (u <= 0) return;
   const rnd = mulberry32(cfg.seed || 7);
   const jag = [], n = 26;
