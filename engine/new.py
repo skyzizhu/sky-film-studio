@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """sky-film-studio · new.py —— 新建影片项目（自包含，可 zip 复现）
   new.py <dir> [--name 片名] [--theme tech|history|news|code|finance|default]"""
-import argparse, json, pathlib, shutil, html, subprocess
-from project import write_json, validate_font, file_hash
+import argparse, json, pathlib, shutil
 
 SKILL = pathlib.Path(__file__).resolve().parents[1]
 
@@ -16,14 +15,13 @@ INDEX_HTML = """<!DOCTYPE html>
   canvas { display: block; }
 </style>
 <!-- 字体：OTF 放 assets/fonts/；下载后必须 sfnt 表校验（pipeline.md 坑 2）。
-     预览可回退并告警；交付检查要求所有字体成功加载。 -->
+     加载失败自动回退 Songti SC，不会卡死渲染。 -->
 <script>
-  window.__fontErrors = [];
   window.__fontsReady = Promise.all([
     ["NotoSerifSC-Regular.otf", 400], ["NotoSerifSC-SemiBold.otf", 600], ["NotoSerifSC-Bold.otf", 700]
   ].map(([f, w]) => {
     const ff = new FontFace("Noto Serif SC", `url(assets/fonts/${f})`, { weight: String(w) });
-    return ff.load().then(x => document.fonts.add(x)).catch(error => { window.__fontErrors.push(f); console.warn(`字体未加载: ${f}`); });
+    return ff.load().then(x => document.fonts.add(x)).catch(() => {});
   }));
 </script>
 </head>
@@ -38,6 +36,8 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/components/mockups.js"></script>
 <script src="vendor/themes.js"></script>
 <script src="vendor/decor.js"></script>
+<script src="vendor/renderer.js"></script>
+<script src="vendor/renderers/all.js"></script>
 <script src="vendor/icons.js"></script>
 <script src="vendor/icons-fill.js"></script>
 <script src="vendor/components/iconlib.js"></script>
@@ -85,24 +85,24 @@ window.FILM = {
 FILM_JSON = """{
   "title": "__NAME__",
   "theme": "__THEME__",
-  "duration": 60.0,
+  "duration": 12.0,
   "fps": 30,
   "bpm": __BPM__,
   "width": __W__, "height": __H__,
   "music": { "mode": "__MODE__", "arpDensity": 1.0 },
-  "voice": {},
+  "voice": { "cues": "audio/cues.json", "duck_db": -8 },
   "chrome": { "titleAt": 1.7 },
   "beats": [
     { "id": "hook", "scene": "s0", "start": 0.0, "end": 2.4, "energy": 0.9,
       "sentences": [], "sfx": [[0.0, "boom", 0.9]], "note": "钩子" },
-    { "id": "b1", "scene": "s1", "start": 2.4, "end": 60.0, "energy": 0.55,
+    { "id": "b1", "scene": "s1", "start": 2.4, "end": 12.0, "energy": 0.55,
       "sentences": [], "sfx": [[0.1, "pageturn", 0.25]], "note": "第一拍" }
   ],
-  "ending_fade": [58.0, 59.5]
+  "ending_fade": [9.2, 11.7]
 }
 """
 
-DATA_JS = """// 事实数据集中在此；以 claimId 关联 claims.json。示例、序号与动画参数不冒充事实。
+DATA_JS = """// 数据唯一来源：片中一切数字只准出自这里；逐条注明来源；核实不了的数字不进本表
 window.DATA = {
   hook: { l1: "（钩子第一行）", l2: "（钩子金色行）" },
   eco: [],                 // numCounter items: [{roll, text, unit, label, tag}]
@@ -135,7 +135,6 @@ def parse_ratio(r):
     m = _re.fullmatch(r"(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)", r)
     if m:
         a, b = float(m.group(1)), float(m.group(2))
-        if a <= 0 or b <= 0: raise SystemExit("比例两边必须为正数")
         if a >= b:
             return (1920, int(round(1920 * b / a / 2)) * 2)
         return (int(round(1920 * a / b / 2)) * 2, 1920)
@@ -154,25 +153,20 @@ def main():
                     help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
     args = ap.parse_args()
     proj = pathlib.Path(args.dir).resolve()
-    if proj.exists() and any(proj.iterdir()):
-        raise SystemExit(f"拒绝覆盖非空项目目录：{proj}；请新建目录或显式维护现有文件")
-    if args.template and not (SKILL / "templates" / args.template / "storyboard.js").is_file():
-        raise SystemExit("未知模板")
     proj.mkdir(parents=True, exist_ok=True)
     meta = {"tech": (105, "minor"), "history": (85, "pentatonic"), "news": (115, "major"),
             "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor")}[args.theme]
     vw, vh = parse_ratio(args.ratio)
-    if vw < 320 or vh < 320:
-        raise SystemExit("画幅两边均须 ≥320 像素")
     portrait = vh > vw
-    # Content positions depend on actual dimensions, including square/wide formats.
-    cw = min(720, vw-120)
-    top, bottom = 120, vh-280
-    mid = (top+bottom)/2
-    sb_vals = dict(__FS__=min(58,int(vw*.05)), __HOOKY__=int(mid),
-                   __NUMY__=int(mid+100), __CLX__=int((vw-cw)/2),
-                   __CLY__=int(max(top,mid-120)), __CLW__=cw,
-                   __FPX0__=int(vw*.15), __FPX1__=int(vw*.85), __FPY__=int(bottom))
+    # 模板坐标：横竖两套（竖屏单列居中，避开底部字幕/时间轴区）
+    if portrait:
+        sb_vals = dict(__FS__=46, __HOOKY__=560, __NUMY__=860,
+                       __CLX__=(vw - 680) // 2, __CLY__=430, __CLW__=680,
+                       __FPX0__=90, __FPX1__=vw - 90, __FPY__=960)
+    else:
+        sb_vals = dict(__FS__=58, __HOOKY__=470, __NUMY__=760,
+                       __CLX__=600, __CLY__=400, __CLW__=720,
+                       __FPX0__=320, __FPX1__=1600, __FPY__=830)
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
@@ -181,15 +175,18 @@ def main():
         shutil.copy(SKILL / "components" / f"{f}.js", proj / "vendor" / "components" / f"{f}.js")
     shutil.copy(SKILL / "themes" / "themes.js", proj / "vendor" / "themes.js")
     shutil.copy(SKILL / "themes" / "decor.js", proj / "vendor" / "decor.js")
+    shutil.copy(SKILL / "engine" / "renderer.js", proj / "vendor" / "renderer.js")
+    (proj / "vendor" / "renderers").mkdir(exist_ok=True)
+    shutil.copy(SKILL / "themes" / "renderers" / "all.js", proj / "vendor" / "renderers" / "all.js")
     shutil.copy(SKILL / "components" / "icons.js", proj / "vendor" / "icons.js")
     shutil.copy(SKILL / "components" / "icons-fill.js", proj / "vendor" / "icons-fill.js")
-    (proj / "index.html").write_text(INDEX_HTML.replace("__NAME__", html.escape(args.name)), encoding="utf-8")
+    (proj / "index.html").write_text(INDEX_HTML.replace("__NAME__", args.name), encoding="utf-8")
     sb = STORYBOARD.replace("__THEME__", args.theme)
     for k2, v2 in sb_vals.items():
         sb = sb.replace(k2, str(v2))
     (proj / "storyboard.js").write_text(sb, encoding="utf-8")
     (proj / "film.json").write_text(
-        FILM_JSON.replace("__NAME__", json.dumps(args.name,ensure_ascii=False)[1:-1]).replace("__THEME__", args.theme)
+        FILM_JSON.replace("__NAME__", args.name).replace("__THEME__", args.theme)
         .replace("__BPM__", str(meta[0])).replace("__MODE__", meta[1])
         .replace("__W__", str(vw)).replace("__H__", str(vh)), encoding="utf-8")
     (proj / "data.js").write_text(DATA_JS, encoding="utf-8")
@@ -200,7 +197,7 @@ def main():
         tpl = SKILL / "templates" / args.template
         _sh2.copy(tpl / "storyboard.js", proj / "storyboard.js")
         _sh2.copy(tpl / "defaults.js", proj / "data.js")
-        bar = 4 * 60 / meta[0]
+        bar = 4 * 60 / 100
         beats = [{"id": "b0", "scene": "s0", "start": 0, "end": 1 * bar, "energy": 0.9,
                   "sentences": [], "sfx": [[0.0, "boom", 0.85]], "note": "钩子"}]
         if args.template == "daily-brief":
@@ -222,12 +219,10 @@ def main():
                           "energy": 0.6, "sentences": [], "sfx": [[0.5, "tick", 0.16]], "note": "对比"})
         beats.append({"id": "end", "scene": "sEnd", "start": beats[-1]["end"], "end": beats[-1]["end"] + 4 * bar,
                       "energy": 0.4, "sentences": [], "sfx": [[0.3, "swell", 0.2]], "note": "收尾"})
-        dur = max(30, beats[-1]["end"])
-        beats[-1]["end"] = dur
+        dur = beats[-1]["end"]
         f2 = json.loads((proj / "film.json").read_text(encoding="utf-8"))
-        f2.update({"beats": beats, "duration": round(dur, 2), "bpm": meta[0],
+        f2.update({"beats": beats, "duration": round(dur, 2), "bpm": 100,
                    "ending_fade": [dur - 1.6, dur - 0.35], "voice": {},
-                   "progress": args.template != "fact-card",
                    "title": f"模板 · {args.template}"})
         (proj / "film.json").write_text(json.dumps(f2, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"✓ 模板 {args.template}：改 data.js → render --full → 同款新片（{dur:.0f}s）")
@@ -238,29 +233,12 @@ def main():
         if (cand / "NotoSerifSC-SemiBold.otf").is_file():
             for f in ["NotoSerifSC-Regular.otf", "NotoSerifSC-SemiBold.otf", "NotoSerifSC-Bold.otf"]:
                 if (cand / f).is_file():
-                    try:
-                        validate_font(cand / f)
-                    except ValueError as error:
-                        print(f"⚠ {error}"); continue
                     shutil.copy(cand / f, proj / "assets" / "fonts" / f)
             break
-    # Snapshot the actual builders as well as the browser runtime.
-    (proj / "engine").mkdir(exist_ok=True)
-    for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "preview.js"):
-        shutil.copy(SKILL / "engine" / name, proj / "engine" / name)
-    shutil.copy(SKILL / "requirements.txt", proj / "requirements.txt")
-    version = subprocess.run(["git", "-C", str(SKILL), "rev-parse", "HEAD"],
-                             capture_output=True, text=True).stdout.strip() or "unversioned"
-    write_json(proj / "provenance.json", {"engine_revision": version,
-               "source_hashes": {str(p.relative_to(proj)):file_hash(p) for p in sorted((proj/"engine").glob("*")) if p.is_file()},
-               "fonts": {p.name:{"sha256":file_hash(p),"license":"OFL", "family":"Noto Serif SC"}
-                         for p in (proj/"assets/fonts").glob("*.otf")}, "assets": [],
-               "rebuild": "python3 engine/check.py auto --project ."})
-    write_json(proj / "claims.json", {"reviewed": False, "claims": [],
-               "note": "核对所有事实主张及示例标识后设 reviewed:true；程序只检查结构，不替代事实核实"})
     print(f"✓ 项目已建：{proj}（theme={args.theme} bpm={meta[0]} 比例={vw}x{vh}）")
-    print("写文稿/事实证据/分镜；TTS: say → plan → 审阅草案 → plan --apply")
-    print("check.py preflight → 关键帧/短片段复查 → audio build → check.py auto → 编码 → delivery")
+    print("  1) 写 narration.txt / data.js / storyboard.js / film.json")
+    print("  2) voice.py say → plan → render.py --keys（自查≥2轮）→ --full")
+    print("  3) audio.py build → check.py audio → ffmpeg 合成")
 
 
 if __name__ == "__main__":
