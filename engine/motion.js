@@ -13,6 +13,7 @@ window.MO = (() => {
   const inExpo = x => x <= 0 ? 0 : Math.pow(2, 10 * (x - 1));
   const outCubic = x => 1 - Math.pow(1 - x, 3);
   const inCubic = x => x * x * x;
+  const inOutCubic = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   const outBack = (x, s = 1.9) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
   // manim smooth：6t⁵ − 15t⁴ + 10t³
   const smooth = x => x * x * x * (x * (x * 6 - 15) + 10);
@@ -87,7 +88,7 @@ window.MO = (() => {
   // 关键词钉住：强调拍放大到 1.35 并停住
   const pin = (t, at, k = 1.35, dur = 0.3) => 1 + (k - 1) * outBack(seg(t, at, at + dur), 1.4);
 
-  return { clamp01, seg, outExpo, inExpo, outCubic, inCubic, outBack, smooth, bezier, appleOut,
+  return { clamp01, seg, outExpo, inExpo, outCubic, inCubic, inOutCubic, outBack, smooth, bezier, appleOut,
            spring, thereAndBack, wiggle, step12, lag, beatKick,
            punch, pan, slamS, slamSReady, shake, antic, exitFx, land, pin };
 })();

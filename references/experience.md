@@ -53,5 +53,4 @@
 - 老项目的 index.html 不会自动带上新库：升级引擎后要检查项目脚本装载块（敦煌曾因此 decor/wipe 静默失效）。
 - 纯描边线稿在视频尺度认不清（用户："一根线似的"）：双层解法=①phosphor duotone 实心双色集（108 个，icons.py --fill，按填充设计，base 深色层+detail 主色层按序渐显）②手绘件/静态核闭合子路径自动填充（accentDeep 45%）；cfg.style:"line" 可退回线稿。验收：图标四格+敦煌僧人/崖壁全部"实心饱满一眼可辨"。
 - huashu 双库移植三招：TOON.flat 双色分面（clip→阴影→偏移高光→本色）；DG.hand 手绘抖动（密度化+值噪声，加 8fps boiling=逐帧手绘感）；DG.revealMask 笔刷揭开（之字遮罩逐行刷出）——drawObj/drawEntity 的 cfg.flat/wobble/motion:"brushReveal"，验收双色立体/手绘感/完整刷出全过。
-- 升级项目装载块要数行验证：敦煌漏 entityfx/paintfx 两个 script 标签，冒烟在 t=9.58s 报 wobblePath undefined——grep -c "script src" 与引擎文件数对账是硬检查；上一条 v0.5.2 提交里敦煌实为旧帧重封，本条已真重渲。
-- v0.6 四件套上线即自证：storyboard lint 第一跑就抓到模板钩子 7.2s 超标（改 1 小节）；auto 门禁曾把"无全片帧"误报成贴边——auto 第 0 步改为先全片渲染（字幕烧帧本就要渲，不亏）。
+- news decor 顶红条 y0-4 正好在边缘检测 26px 带内（亮度 58-72 全宽 90%）——红条下移 y8-12 避开。每个 theme decor 的装饰元素都不要进 26px 边带（跟纸纹/代码雨同一规则）。

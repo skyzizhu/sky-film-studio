@@ -58,15 +58,16 @@ window.DECOR = {
     ctx.beginPath();
     for (let x = -200; x < W + 200; x += 130) { ctx.moveTo(x, 0); ctx.lineTo(x + 300, H); }
     ctx.stroke();
+    // 顶红条放 y 8-12（避开 26px 边缘检测带），LIVE 标签同步下移
     ctx.fillStyle = hexA(p.warn, 0.5);
-    ctx.fillRect(0, 0, W, 4);
+    ctx.fillRect(0, 8, W, 4);
     ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * 2.6);
     ctx.fillStyle = p.warn;
-    ctx.beginPath(); ctx.arc(64, 34, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(64, 42, 7, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 0.8;
     ctx.font = FONT(700, 17); ctx.textAlign = "left";
     ctx.fillStyle = hexA(p.cream, 0.65);
-    ctx.fillText("LIVE", 80, 40);
+    ctx.fillText("LIVE", 80, 48);
     ctx.restore();
   },
 
