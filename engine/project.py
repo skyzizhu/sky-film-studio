@@ -207,3 +207,38 @@ def sound_events(beat, film=None):
                 row.append(duration)
             result.append(row)
     return result
+
+
+def transition_errors(film):
+    errors=[];beats=film.get('beats',[])
+    if not isinstance(beats,list):return ['Transition beats must be a list']
+    for i,beat in enumerate(beats):
+        if not isinstance(beat,dict):
+            errors.append(f'beat {i}: transition needs a beat object');continue
+        raw=beat.get('transition',film.get('scene_transition'))
+        if raw is None or raw is False:continue
+        if not isinstance(raw,dict) or raw.get('type') not in ('cut','fade','dissolve'):
+            errors.append(f'beat {i}: invalid transition');continue
+        if raw['type']=='cut':continue
+        duration=raw.get('duration')
+        if not number(duration) or not .1<=duration<=2:
+            errors.append(f'beat {i}: transition duration must be .1–2 seconds');continue
+        if i and isinstance(beats[i-1],dict) and all(number(b.get(k)) for b in (beat,beats[i-1]) for k in ('start','end')):
+            if duration>min(beat['end']-beat['start'],beats[i-1]['end']-beats[i-1]['start']):
+                errors.append(f'beat {i}: transition exceeds adjacent beat')
+    return errors
+
+
+def transition_keys(film):
+    """Sample both sides of opt-in editorial boundaries, including fade middles."""
+    errors=transition_errors(film)
+    if errors:raise ValueError('; '.join(errors))
+    result=set();fps=film.get('fps',30)
+    for i,beat in enumerate(film.get('beats',[])):
+        if not i:continue
+        cfg=beat.get('transition',film.get('scene_transition'))
+        if not cfg or cfg.get('type')=='cut':continue
+        at,duration=beat['start'],cfg['duration']
+        offsets=(-duration/2,-duration/4,-1/fps,0,duration/4,duration/2) if cfg['type']=='fade' else (-1/fps,0,duration/2,duration)
+        result.update(round(at+d,5) for d in offsets if 0<=at+d<film['duration'])
+    return sorted(result)

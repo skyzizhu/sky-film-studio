@@ -12,7 +12,7 @@ import subprocess
 import sys
 import wave
 from audio_metrics import measure, violations, policy
-from project import (timeline_errors, cues_path, number, build_current, file_hash, sound_events)
+from project import (timeline_errors, cues_path, number, build_current, file_hash, sound_events, transition_errors, transition_keys)
 
 
 def load(project):
@@ -34,7 +34,7 @@ def preflight(project, strict=False):
     try:film=resolve(film)
     except (ValueError,TypeError) as error:
         print('✗',error);return False
-    errors, warnings = timeline_errors(film,cues), []
+    errors, warnings = timeline_errors(film,cues)+transition_errors(film), []
     try: policy(film)
     except ValueError as error:errors.append(str(error))
     for beat in film.get('beats',[]):
@@ -226,6 +226,7 @@ def auto(args):
         for beat in film['beats']:
             for offset in (.05,.2,.5,.9):
                 times.append(round(beat['start']+(beat['end']-beat['start'])*offset,3))
+        times.extend(transition_keys(film))
         keys=','.join(map(str,sorted(set(times))))
     run('render.py','--keys',keys,'--determinism','--strict-fonts')
     sheet(project,args.n)

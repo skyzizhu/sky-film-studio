@@ -41,6 +41,7 @@ async function bootScaffold() {
   for (const beat of FILM_META.beats || [])
     if (typeof window.FILM?.scenes?.[beat.scene] !== "function")
       throw new Error(`未定义场景 ${beat.scene}`);
+  if(window.SceneTransition)SceneTransition.validate(FILM_META.beats||[],FILM_META.scene_transition);
   window.SUBTITLE_LAYOUT = makeSubtitleLayout(CTX, CUES?.sentences ||
     (FILM_META.subtitles || []).map(([start,end,text])=>({start,end,text})));
   if (window.preloadSVGIcons) await preloadSVGIcons();
@@ -185,6 +186,11 @@ function drawFrame(t) {
     let beat = beats[0];
     for (const b of beats) if (t >= b.start) beat = b;
     const fn = window.FILM.scenes[beat.scene];
+    const paint = target => {
+      if(typeof window.FILM.shared==='function')window.FILM.shared(target,t,beat);
+      if(window.SceneTransition)SceneTransition.draw(target,t,beats,window.FILM.scenes,FILM_META.scene_transition,FILM_META.fps||30);
+      else fn(target,t,t-beat.start,beat);
+    };
     if (fn) {
       // 场景级脉冲：停 → 0.28s 快推 → 停（film.json punches: [[at, dur?, k?]]，可省略）
       let z = 1;
@@ -194,9 +200,9 @@ function drawFrame(t) {
       if (z > 1.0005) {
         ctx.save();
         ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
-        fn(ctx, t, t - beat.start, beat);
+        paint(ctx);
         ctx.restore();
-      } else fn(ctx, t, t - beat.start, beat);
+      } else paint(ctx);
     }
   }
 

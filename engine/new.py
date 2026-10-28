@@ -39,6 +39,8 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/camera.js"></script>
 <script src="vendor/materials.js"></script>
 <script src="vendor/style-motion.js"></script>
+<script src="vendor/transitions.js"></script>
+<script src="vendor/gears.js"></script>
 <script src="vendor/components/base.js"></script>
 <script src="vendor/components/textfx.js"></script>
 <script src="vendor/components/objectfx.js"></script>
@@ -197,7 +199,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
-    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js','style-motion.js'):
+    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js','style-motion.js','transitions.js','gears.js'):
         shutil.copy(SKILL/'engine'/name,proj/'vendor'/name)
     (proj/'vendor/renderers').mkdir(exist_ok=True)
     shutil.copy(SKILL/'themes/renderers/all.js',proj/'vendor/renderers/all.js')
