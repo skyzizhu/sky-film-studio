@@ -3,7 +3,7 @@ r=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(r/'engine'))
 import argparse
 parser=argparse.ArgumentParser();parser.add_argument('--out');args=parser.parse_args()
 root=pathlib.Path(args.out) if args.out else pathlib.Path(tempfile.mkdtemp(prefix='film-theme-tests-'));root.mkdir(exist_ok=True)
-for theme,ratio in [('ink','960x540'),('whiteboard','540x960'),('pixel','540x960'),('glitch','960x540'),('screencast','960x540')]:
+for theme,ratio in [('ink','960x540'),('whiteboard','540x960'),('pixel','540x960'),('glitch','960x540'),('screencast','960x540'),('blueprint','540x960'),('museum','960x540')]:
  p=root/theme
  if p.exists(): raise SystemExit(f'Use an empty output directory: {p}')
  subprocess.run([sys.executable,str(r/'engine/new.py'),str(p),'--theme',theme,'--ratio',ratio],check=True)

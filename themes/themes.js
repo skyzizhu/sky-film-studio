@@ -85,3 +85,13 @@ for (const [key,base,palette,font,light] of [
  THEMES[key]={...src,key,light,palette:{...src.palette,...palette},fonts:{...src.fonts,serif:font},
    grain:light?0:src.grain,lightBand:light?0:src.lightBand,vignette:light?0:src.vignette};
 }
+
+// Opt-in object-focused themes; music choices are mirrored by new.py.
+for (const [key,base,palette,bpm,mode] of [
+ ['blueprint','tech',{bg0:'#0a243b',bg1:'#103650',ink:'#103047',cream:'#e7f4f4',creamDim:'#a5c4ce',accent:'#78d1df',accentHi:'#c4f4f6',accentDeep:'#336c86'},96,'minor'],
+ ['museum','history',{bg0:'#182622',bg1:'#30423a',ink:'#22332c',cream:'#f4ead6',creamDim:'#b9c4b5',accent:'#c7a574',accentHi:'#efcf9a',accentDeep:'#7b603f'},76,'pentatonic']
+]) {
+ const src=THEMES[base];
+ THEMES[key]={...src,key,bpm,palette:{...src.palette,...palette},
+  music:{mode,brightness:.4,arpDensity:.5},grain:0,vignette:0,lightBand:0,decor:{}};
+}

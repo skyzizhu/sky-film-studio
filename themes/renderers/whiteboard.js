@@ -8,7 +8,7 @@
 
   // 白板底（缓存）：白底 + 淡网格 + 板边 + 磁铁
   function boardBg(ctx, W, H) {
-    if (_board) { ctx.drawImage(_board, 0, 0); return; }
+    if (_board && _board.width === W && _board.height === H) { ctx.drawImage(_board, 0, 0); return; }
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const b = c.getContext("2d");
     // 白板面
@@ -48,6 +48,7 @@
 
   // rough edge（每个顶点随机偏移 ±2px，两次绘制叠加）
   function roughStroke(ctx, pts, cfg) {
+    ctx.save();
     const rnd = mulberry32(cfg.seed || 3);
     ctx.strokeStyle = cfg.color || "#1a1a1a";
     ctx.lineWidth = cfg.lw || 3.5;
@@ -62,7 +63,7 @@
     ctx.stroke();
     // 第二遍（重叠加强，手绘感）
     if (cfg.double !== false) {
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha *= 0.3;
       ctx.beginPath();
       const rnd2 = mulberry32((cfg.seed || 3) + 100);
       pts.forEach((p, i) => {
@@ -71,8 +72,9 @@
       });
       if (cfg.closed) ctx.closePath();
       ctx.stroke();
-      ctx.globalAlpha = 1;
+
     }
+    ctx.restore();
   }
 
   window.RENDERERS = window.RENDERERS || {};

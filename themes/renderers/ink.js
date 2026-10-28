@@ -25,7 +25,7 @@
   // 宣纸纤维底（缓存）
   let _paper = null;
   function paperTexture(ctx, W, H) {
-    if (_paper) { ctx.drawImage(_paper, 0, 0); return; }
+    if (_paper && _paper.width === W && _paper.height === H) { ctx.drawImage(_paper, 0, 0); return; }
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const b = c.getContext("2d");
     const g = b.createLinearGradient(0, 0, W, H);

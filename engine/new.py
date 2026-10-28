@@ -36,6 +36,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/blur.js"></script>
 <script src="vendor/process.js"></script>
 <script src="vendor/camera.js"></script>
+<script src="vendor/materials.js"></script>
 <script src="vendor/components/base.js"></script>
 <script src="vendor/components/textfx.js"></script>
 <script src="vendor/components/objectfx.js"></script>
@@ -155,7 +156,7 @@ def main():
     ap.add_argument("dir")
     ap.add_argument("--name", default="我的短片")
     ap.add_argument("--theme", default="default",
-                    choices=["tech", "history", "news", "code", "finance", "default", "ink", "pixel", "glitch", "whiteboard", "screencast"])
+                    choices=["tech", "history", "news", "code", "finance", "default", "ink", "pixel", "glitch", "whiteboard", "screencast", "blueprint", "museum"])
     ap.add_argument("--ratio", default="16:9",
                     help="16:9(默认)|9:16|1:1|4:3|3:4|4:5|2.35:1|W:H|WxH")
     ap.add_argument("--template", default=None,
@@ -169,7 +170,7 @@ def main():
     proj.mkdir(parents=True, exist_ok=True)
     meta = {"tech": (105, "minor"), "history": (85, "pentatonic"), "news": (115, "major"),
             "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor"), "ink": (72,"pentatonic"), "pixel": (130,"minor"),
-            "glitch": (128,"minor"), "whiteboard": (92,"major"), "screencast": (90,"minor")}[args.theme]
+            "glitch": (128,"minor"), "whiteboard": (92,"major"), "screencast": (90,"minor"), "blueprint": (96,"minor"), "museum": (76,"pentatonic")}[args.theme]
     vw, vh = parse_ratio(args.ratio)
     if vw < 320 or vh < 320:
         raise SystemExit("画幅两边均须 ≥320 像素")
@@ -185,7 +186,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
-    for name in ('blur.js','renderer.js','process.js','camera.js'):
+    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js'):
         shutil.copy(SKILL/'engine'/name,proj/'vendor'/name)
     (proj/'vendor/renderers').mkdir(exist_ok=True)
     shutil.copy(SKILL/'themes/renderers/all.js',proj/'vendor/renderers/all.js')

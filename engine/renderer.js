@@ -17,6 +17,9 @@ window.Renderer = {
     const themeKey = meta.theme || "default";
     // 显式指定 renderer 优先，否则按主题映射
     const rKey = meta.renderer || THEME_RENDERER_MAP[themeKey] || "default";
+    if (meta.renderer && rKey !== "default" && !window.RENDERERS?.[rKey]) {
+      throw new Error(`Unknown renderer: ${rKey}`);
+    }
     if (window.RENDERERS && window.RENDERERS[rKey]) {
       window._current = window.RENDERERS[rKey];
     } else {
@@ -89,6 +92,8 @@ const THEME_RENDERER_MAP = {
   "code": "default",
   "finance": "default",
   // v7 新主题：用专属渲染引擎
+  "blueprint": "blueprint",
+  "museum": "museum",
   "ink": "ink",
   "pixel": "pixel",
   "glitch": "glitch",

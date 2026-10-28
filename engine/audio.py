@@ -233,6 +233,8 @@ def _fm_piano(f, dur):
 
 # 主题 → 乐器映射
 THEME_INSTRUMENTS = {
+    "blueprint": {"lead": _fm_piano, "perc": lambda f, d=0.05: _chiptune_noise(d), "bass": _fm_piano, "type": "lofi"},
+    "museum": {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "organic"},
     "ink":         {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "acoustic"},
     "pixel":       {"lead": _chiptune_square, "perc": lambda f,d: _chiptune_noise(d), "bass": _chiptune_square, "type": "chiptune"},
     "glitch":      {"lead": _saw_distort, "perc": lambda f,d: v_kick(), "bass": _saw_distort, "type": "electronic"},

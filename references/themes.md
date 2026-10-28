@@ -16,7 +16,7 @@ tech: {
 }
 ```
 
-## 六主题速查
+## 基础六主题速查
 
 | key | bg | accent | 粒子 | 专属 decor | 音乐 |
 |---|---|---|---|---|---|
@@ -57,7 +57,23 @@ tech: {
 | pixel | 保持目标宽高比的低分辨率量化 | 方波与噪声打击 |
 | glitch | RGB 分离、切片与扫描线 | 失真锯齿 |
 | screencast | 深色编辑器背景 | FM 电钢 |
+| blueprint | 深蓝工程网格、清晰线条，适合结构/原理图 | 稀疏 FM 电钢，96 BPM 小调 |
+| museum | 墨绿陈列背景、静态柔光与展示平面，适合实体/工艺 | 合成古筝，76 BPM 五声 |
 
 `theme` 提供色板与默认渲染器；`renderer` 可显式覆盖。`music.instrumentTheme` 可独立选上述音色；mode/BPM 仍以 film.json 为准。纯英文装饰字可使用随项目复制的 Orbitron 或 Press Start 2P，中文正文保留完整中文字库。不要给中文整行强配不含中文的字体。
 
 渲染器原文件在 themes/renderers/*.js；修改后重建 all.js 并测试实际装载的 bundle。SVG 图标用同步 Path2D 保留原始曲线；只有旧接口需要逐笔路径时才惰性采样。未知实体仍应报错，自定义部件与动作优先于图标兜底。
+
+`blueprint/museum` 背景按实际画幅直接绘制，无整帧后处理；材质由场景单独选择。它们不自动给所有物体叠纹理/高光，也不自动安排鼓点。new.py 写入相应 BPM/mode；music.layers 与 leadDensity 按口播密度调整。自绘不透明背景会遮住主题底，应有意复用主题底或主动替换，不要只改 theme 后声称已换画面。
+
+重建渲染器 bundle（仓库根目录）：
+
+```sh
+python3 - <<'PY'
+from pathlib import Path
+p=Path('themes/renderers')
+(p/'all.js').write_text('// Generated from renderer sources; rebuild after edits.\n'+'\n'.join((p/(n+'.js')).read_text() for n in ['ink','pixel','glitch','whiteboard','screencast','blueprint','museum']))
+PY
+```
+
+显式 renderer 拼写未知会报错；`renderer:"default"` 可使用基础管线。宣纸/白板缓存按目标宽高更新。

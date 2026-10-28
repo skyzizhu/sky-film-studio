@@ -1,6 +1,4 @@
-// sky-film-studio · renderer bundle; sources: themes/renderers/*.js
-
-// === ink ===
+// Generated from renderer sources; rebuild after edits.
 // =====================================================================
 // 渲染引擎 · ink（水墨）—— fBm 噪声山脊 + 墨晕扩散 + 宣纸纤维 + 竖排书法
 // 与 history 主题的区别：history 只是换色板；ink 换了整个"画画方式"。
@@ -28,7 +26,7 @@
   // 宣纸纤维底（缓存）
   let _paper = null;
   function paperTexture(ctx, W, H) {
-    if (_paper) { ctx.drawImage(_paper, 0, 0); return; }
+    if (_paper && _paper.width === W && _paper.height === H) { ctx.drawImage(_paper, 0, 0); return; }
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const b = c.getContext("2d");
     const g = b.createLinearGradient(0, 0, W, H);
@@ -172,7 +170,6 @@
   };
 })();
 
-// === pixel ===
 // =====================================================================
 // 渲染引擎 · pixel（8-bit 像素）—— 240×135 低分辨率 × 8 倍放大 + 步进动画
 // =====================================================================
@@ -284,7 +281,6 @@
   };
 })();
 
-// === glitch ===
 // =====================================================================
 // 渲染引擎 · glitch（赛博故障）—— RGB 三通道分离 + 横向切片位移 + CRT 扫描线
 // =====================================================================
@@ -415,7 +411,6 @@
   };
 })();
 
-// === whiteboard ===
 // =====================================================================
 // 渲染引擎 · whiteboard（手绘白板）—— 浅色底 + 毛边形状 + 手写字体 + 马克笔色
 // 这是唯一的浅色主题，视觉上和其他所有主题形成强对比。
@@ -426,7 +421,7 @@
 
   // 白板底（缓存）：白底 + 淡网格 + 板边 + 磁铁
   function boardBg(ctx, W, H) {
-    if (_board) { ctx.drawImage(_board, 0, 0); return; }
+    if (_board && _board.width === W && _board.height === H) { ctx.drawImage(_board, 0, 0); return; }
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const b = c.getContext("2d");
     // 白板面
@@ -466,6 +461,7 @@
 
   // rough edge（每个顶点随机偏移 ±2px，两次绘制叠加）
   function roughStroke(ctx, pts, cfg) {
+    ctx.save();
     const rnd = mulberry32(cfg.seed || 3);
     ctx.strokeStyle = cfg.color || "#1a1a1a";
     ctx.lineWidth = cfg.lw || 3.5;
@@ -480,7 +476,7 @@
     ctx.stroke();
     // 第二遍（重叠加强，手绘感）
     if (cfg.double !== false) {
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha *= 0.3;
       ctx.beginPath();
       const rnd2 = mulberry32((cfg.seed || 3) + 100);
       pts.forEach((p, i) => {
@@ -489,8 +485,9 @@
       });
       if (cfg.closed) ctx.closePath();
       ctx.stroke();
-      ctx.globalAlpha = 1;
+
     }
+    ctx.restore();
   }
 
   window.RENDERERS = window.RENDERERS || {};
@@ -524,7 +521,6 @@
   };
 })();
 
-// === screencast ===
 // =====================================================================
 // 渲染引擎 · screencast（代码录屏）—— 假 IDE + 语法高亮 + 逐字打字 + 文件树
 // 画面就是一块代码编辑器，代码逐字打出，文件树/终端/预览同步切换。
@@ -719,4 +715,48 @@
 
     components: { drawIDE, tokenize, SYNTAX }
   };
+})();
+
+'use strict';
+(() => {
+ window.RENDERERS=window.RENDERERS||{};
+ window.RENDERERS.blueprint={
+  bg(ctx,t,W,H){
+   ctx.save();
+   ctx.fillStyle=TH.palette.bg0;ctx.fillRect(0,0,W,H);
+   const step=Math.max(20,Math.min(W,H)/18);
+   for(let layer=0;layer<2;layer++){
+    const d=step*(layer?5:1);
+    ctx.strokeStyle=layer?'rgba(160,219,236,.14)':'rgba(160,219,236,.05)';ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=d){ctx.moveTo(x,0);ctx.lineTo(x,H);}
+    for(let y=0;y<=H;y+=d){ctx.moveTo(0,y);ctx.lineTo(W,y);}
+    ctx.stroke();
+   }
+   ctx.restore();
+  },
+  entityDefaults(){return {color:TH.palette.accent,glow:0};},
+  textDefaults(){return {color:TH.palette.cream,glow:0};},
+  audio:{instruments:['fm_piano'],bpm:96,mode:'minor'}
+ };
+})();
+
+'use strict';
+(() => {
+ window.RENDERERS=window.RENDERERS||{};
+ window.RENDERERS.museum={
+  bg(ctx,t,W,H){
+   ctx.save();ctx.fillStyle=TH.palette.bg0;ctx.fillRect(0,0,W,H);
+   const g=ctx.createRadialGradient(W*.66,H*.4,0,W*.6,H*.45,Math.max(W,H)*.75);
+   g.addColorStop(0,TH.palette.bg1);g.addColorStop(1,TH.palette.bg0);
+   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+   // Quiet display plane, kept behind the objects and caption layer.
+   ctx.strokeStyle='rgba(220,206,173,.09)';ctx.lineWidth=1;
+   ctx.beginPath();ctx.moveTo(W*.07,H*.81);ctx.lineTo(W*.93,H*.81);ctx.stroke();
+   ctx.restore();
+  },
+  entityDefaults(){return {color:TH.palette.accent,glow:0};},
+  textDefaults(){return {color:TH.palette.cream,glow:0};},
+  audio:{instruments:['guzheng','taiko'],bpm:76,mode:'pentatonic'}
+ };
 })();
