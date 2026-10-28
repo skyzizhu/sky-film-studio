@@ -11,6 +11,7 @@ import pathlib
 import subprocess
 import sys
 import wave
+from audio_metrics import measure, violations, policy
 from project import (timeline_errors, cues_path, number, build_current, file_hash)
 
 
@@ -30,6 +31,15 @@ def probe(path):
 def preflight(project, strict=False):
     project, film, cues = load(project)
     errors, warnings = timeline_errors(film,cues), []
+    try: policy(film)
+    except ValueError as error:errors.append(str(error))
+    for beat in film.get('beats',[]):
+        events=beat.get('events',{})
+        if not isinstance(events,dict):errors.append('beat.events 必须为对象');continue
+        for name,event in events.items():
+            if not (isinstance(event,list) and len(event)==2 and all(number(t) for t in event) and
+                    0<=event[0]<event[1]<=beat.get('end',0)-beat.get('start',0)+.001):
+                errors.append(f"{beat.get('id')} 事件 {name} 必须为拍内局部时间 [start,end]")
     if errors:
         for error in errors: print('✗',error)
         return False
@@ -179,7 +189,10 @@ def delivery(project,video):
     stamp=project/'build/video.json'
     if not stamp.is_file() or json.loads(stamp.read_text()).get('sha256')!=file_hash(path):
         print('✗ 成片与编码记录不一致'); ok=False
-    result={'technical_passed':ok,'manual_review_required':['画面辨识度/结构与遮挡','首句/数字句/末句试听','字幕完整性与事实来源']}
+    stats=measure(path)
+    for error in violations(stats,film):print('✗',error);ok=False
+    print(f'最终音轨: {stats["integrated_lufs"]} LUFS / {stats["true_peak_dbtp"]} dBTP')
+    result={'audio_metrics':stats,'technical_passed':ok,'manual_review_required':['画面辨识度/结构与遮挡','首句/数字句/末句试听','字幕完整性与事实来源']}
     from project import write_json
     write_json(project/'checks/delivery.json',result)
     print('✓ 编码与技术检查通过；仍需完成观看/试听验收' if ok else '✗ 交付检查未通过')

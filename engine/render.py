@@ -128,6 +128,7 @@ def main():
     if args.clip and (args.full or not args.output):
         ap.error('--clip 需要 --output，且不能与 --full 同用')
     project_path = pathlib.Path(args.project).resolve()
+    clip_output = pathlib.Path(args.output).resolve() if args.output else None
     pw, browser, page, httpd, dur = launch(project_path,args.strict_fonts,args.determinism)
     try:
         if args.keys:
@@ -151,7 +152,7 @@ def main():
                 ap.error('--clip 必须在全片时间范围内')
             fps=page.evaluate('FILM_META.fps || 30')
             count=math.ceil((end-start)*fps)
-            output=pathlib.Path(args.output).resolve();output.parent.mkdir(parents=True,exist_ok=True)
+            output=clip_output;output.parent.mkdir(parents=True,exist_ok=True)
             command=['ffmpeg','-y','-v','error','-f','image2pipe','-framerate',str(fps),
                      '-i','pipe:0','-an','-c:v','libx264','-crf','17','-pix_fmt','yuv420p',
                      '-movflags','+faststart',str(output)]

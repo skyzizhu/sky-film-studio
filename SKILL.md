@@ -32,15 +32,16 @@ description: "Create and revise 30s–5min explainer films from a topic, script 
 1. **规格与内容**：确定模式、比例、帧率和目标时长。默认横屏 1920×1080；竖屏 1080×1920；也支持 1:1、4:3、3:4、4:5、2.35:1、W:H、WxH。`new.py` 要求空目录。按实际 W/H 排版，不能只改画布尺寸。
 2. **事实与文稿**：写 `narration.txt`（每句一行）、`data.js` 和 `claims.json`。中文 TTS 约 4–4.5 字/秒只用于粗预算，实际音频时长才是排镜依据。核查完成再设 `claims.reviewed:true`，该标记是人工审查记录，程序不会替你证明主张真实。
 3. **语音与分镜**：B 用 `voice.py say`；`plan` 默认只产草案，不改原 cues/film。审阅后 `plan --apply` 应用新分镜并落位 TTS；手改句子分组/边界后 `place`，越界或漏句会拒绝写入。D 用 `import`，VAD 只出候选，提供 `--aligned-cues` 或校对后设 `alignment.reviewed:true`；禁止对整段录音执行 place。详见 [voice.md](references/voice.md)。
-4. **画面设计**：先确定每拍要解释的变化、关系或行动，再选实体和表现方式。主题是默认建议，不限制用户风格。主题及渲染器配置在 `themes/themes.js`；按需读 [themes.md](references/themes.md)。实体、部件、动作接口读 [entities.md](references/entities.md)，构图与分镜读 [storyboard.md](references/storyboard.md)。
+4. **画面设计**：先确定每拍要解释的变化、关系或行动，再选实体和表现方式。主题是默认建议，不限制用户风格。主题及渲染器配置在 `themes/themes.js`；按需读 [themes.md](references/themes.md)。实体、部件、动作接口读 [entities.md](references/entities.md)；操作/工艺/转印的接触与共享状态读 [process.md](references/process.md)，构图与分镜读 [storyboard.md](references/storyboard.md)。
 5. **预检与视觉复查**：先 `check.py preflight`，再 `render.py --keys`、拼图和看图。第一轮查构图/辨识度/文字，修后复查相关时刻；有运动的镜头再用 `render.py --clip 起点,终点 --output checks/motion.mp4` 看短动画片段。不得用两轮同样静帧替代连续性检查。预览可 `--preview`。
-6. **技术终检**：`audio.py build` → `check.py auto`（严格预检、关键帧/确定性、音频、过期全片重渲、边缘提示）→ `encode.py` → `check.py delivery --video`。音频总线峰值 ≤ -1dBFS，结尾淡出不切口播；配乐尽量在乐句上收束。合成音乐是默认选项，也可使用用户授权素材并记录来源，不能宣称工具合成天然“无版权风险”。命令见 [pipeline.md](references/pipeline.md)。
+6. **技术终检**：`audio.py build` → `check.py auto`（严格预检、关键帧/确定性、音频、过期全片重渲、边缘提示）→ `encode.py` → `check.py delivery --video`。混音采样峰值 ≤ -1dBFS；编码后另查可配置LUFS与真峰值（默认-16 LUFS、≤-1 dBTP），结尾淡出不切口播；配乐尽量在乐句上收束。合成音乐是默认选项，也可使用用户授权素材并记录来源，不能宣称工具合成天然“无版权风险”。命令见 [pipeline.md](references/pipeline.md)。
 7. **交付与经验**：源码包含 vendor、engine、requirements、字体/素材及来源、分镜文稿、音轨与检查记录；不要打包凭证、缓存、巨量 frames。新经验先记项目内，维护技能时再筛选合并到 [experience.md](references/experience.md)。
 
 ## 表达选择
 
 - 通用概念用清晰图标；具体实物可用参数化矢量、SVG、参考图片或必要的 3D。真实人物、历史遗物、指定产品应核验关键形态，虚构示意不可冒充真实记录。
 - 先保证轮廓和关键部件可辨，再加材质、光影、描线或抖动。入场动画与物体动作分开：出现、抓取/转动/流转、停留、退出。跨镜头复用实体身份。
+- 动作要显示原因与结果：刷涂按接触区改变表面，转印与重排共用布局，抓取分抬起/移动/放下；关键事件与口播按语义核对，不能仅保证句子落在镜头里。
 - 一屏主焦点明确。文字、数据图、过程演示、静止、慢推或冲击效果按内容使用；不强制每章数字动画、每拍重击或每片金句。
 - chrome（顶栏/字幕/进度）与内容分层。`progress` 明确按内容设置；timeline 优先于进度轨；字幕底部自动补位。内容安全区仍须按目标画幅和平台遮挡复查。
 

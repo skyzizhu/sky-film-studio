@@ -73,3 +73,13 @@ zip 包含成片、源文件、vendor/engine、requirements、assets、claims/pr
 - cues 路径统一使用 film.voice.cues；不存在时报错，不静默丢字幕或音轨。
 - 字幕烧帧：place/改稿 → audio build → full render → encode → delivery。auto 的指纹可发现过期产物。
 - 入场与转场的中间态应单独看；动画快慢、图形结构正确与否无法靠亮度扫描证明。
+
+## 配乐分层与最终响度
+
+`music.layers` 可独立设置 `pad/bass/percussion/snare/hats/lead/shimmer` 增益（0关闭，支持0–2），`beat.music.layers` 可覆盖当前段落。`music.leadDensity` 设置主题主奏每小节约 `4×density` 个音；低能量主题仍可有稀疏旋律，不再要求 energy>0.55。旧常规主题未显式指定 lead 时保持原门槛。实际编曲记录在 `checks/arrangement.json`；乐器名不等于实际发声记录。段落参数在小节边界采样，语义音效仍用精确事件时间。
+
+`voice.duck_attack/duck_release` 分别控制配乐闪避进入与恢复（默认0.18/0.65秒）；保留短句间的自然衔接，不强制每句末立刻恢复满音量。可用 `brush/paper/clay` 合成动作音效；它们是声音示意，不是历史工具录音。p可为brush/paper的时长（0.02–5秒）。
+
+`audio_master` 示例：`{"integrated_lufs":-16,"true_peak_dbtp":-1,"loudness_tolerance":1}`。这是可调的交付默认，不代表所有平台统一标准。encode.py 对源混音做两遍测量/归一化，为AAC留真峰值余量，测量编码结果后才写构建成功；delivery 再测最终解码音轨。采样峰值/RMS不能代替LUFS与dBTP。超限失败时查看实际音轨与目标，不能只修改验收阈值。工具依据：[FFmpeg loudnorm](https://ffmpeg.org/ffmpeg-filters.html#loudnorm)。
+
+动作与共享状态的接口见 [process.md](process.md)。短片段输出的相对路径以调用命令时的工作目录解析，不随服务端切换到项目目录。

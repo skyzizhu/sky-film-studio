@@ -56,6 +56,13 @@ def main():
         run(ROOT/'engine/encode.py','--project',project,'--output',output)
         run(ROOT/'engine/check.py','delivery','--project',project,'--video',output)
         assert build_current(project,'frames')
+        # Relative clip output resolves from the invoking working directory.
+        relative=directory/'motion.mp4'
+        subprocess.run([sys.executable,str(ROOT/'engine/render.py'),'--project',str(project),
+                        '--clip','0,1','--output','motion.mp4','--strict-fonts'],cwd=directory,check=True)
+        assert relative.is_file() and not (project/'motion.mp4').exists()
+        assert build_current(project,'frames') and build_current(project,'audio')
+
         # Exercise templates in vertical/square/wide formats with a non-30fps clock.
         for template,ratio in [('how-to','9:16'),('fact-card','1:1'),('daily-brief','2.35:1')]:
             target=directory/template

@@ -34,6 +34,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/lib.js"></script>
 <script src="vendor/motion.js"></script>
 <script src="vendor/blur.js"></script>
+<script src="vendor/process.js"></script>
 <script src="vendor/components/base.js"></script>
 <script src="vendor/components/textfx.js"></script>
 <script src="vendor/components/objectfx.js"></script>
@@ -183,7 +184,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
-    for name in ('blur.js','renderer.js'):
+    for name in ('blur.js','renderer.js','process.js'):
         shutil.copy(SKILL/'engine'/name,proj/'vendor'/name)
     (proj/'vendor/renderers').mkdir(exist_ok=True)
     shutil.copy(SKILL/'themes/renderers/all.js',proj/'vendor/renderers/all.js')
@@ -250,7 +251,7 @@ def main():
             shutil.copy(f,proj/'assets/fonts'/f.name)
     # Snapshot the actual builders as well as the browser runtime.
     (proj / "engine").mkdir(exist_ok=True)
-    for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "preview.js"):
+    for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "audio_metrics.py", "preview.js"):
         shutil.copy(SKILL / "engine" / name, proj / "engine" / name)
     shutil.copy(SKILL / "requirements.txt", proj / "requirements.txt")
     version = subprocess.run(["git", "-C", str(SKILL), "rev-parse", "HEAD"],

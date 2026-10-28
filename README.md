@@ -24,7 +24,7 @@
 | 实体管线 | 按表达目标选参考素材、原生SVG或部件实体；入场、动作和退出分开，跨镜头保持身份 |
 | 文字动效 | 主词砸入/槽里升起/打字机/逐字浮出/荧光笔·下划线·圈注 |
 | 冲击特效 | 冲击波/粒子飞射/速度线/放射光 + 四式拍首转场（色带/墨晕/横推/扫描线） |
-| BGM/SFX | Python 本地合成（记录代码与素材来源），能量曲线跟分镜，口播段自动 duck，峰值 -1dB |
+| BGM/SFX | Python 本地合成（记录代码与素材来源），能量曲线跟分镜，口播段自动 duck，混音采样峰值 -1dB；编码后响度/真峰值检查 |
 | 任意比例 | 默认 16:9；说"竖屏"→9:16；可点名 1:1/4:3/4:5/2.35:1/任意 W:H |
 | 质检闭环 | 严格预检、关键帧/确定性、音频与过期重建；编码后 delivery；画面和试听仍须复查 |
 | 完全离线 | 字体（35MB）、图标（245 个）、渲染引擎全部内置 `assets/`+`components/`，依赖安装完成后可离线渲染 |
@@ -177,3 +177,5 @@ examples/wxminipro/    已交付 60s 参考片源码（微信小程序从0到上
 ```
 
 第三方：线稿图标 [lucide](https://lucide.dev)（ISC）；实心图标 [phosphor](https://phosphoricons.com)（MIT）；字体 Noto Serif SC、LXGW WenKai 及专属展示字体见 assets/fonts。制作方法亦参考 [code-video-showcase](https://github.com/Moessif/code-video-showcase)，适配范围见 [showcase.md](references/showcase.md)。
+
+工艺演示支持接触遮罩、实体身份保持、镜像转印与抬起/搬运/放下；见 [process.md](references/process.md)。配乐支持独立分层、段落覆盖与可配置闪避；最终MP4按可配置LUFS/dBTP验收，见 [pipeline.md](references/pipeline.md)。

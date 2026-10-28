@@ -2,8 +2,8 @@
 """sky-film-studio · audio.py —— BGM/SFX 合成 + 口播混音
   build --project <dir>
 读 film.json：BGM 小节网格编曲，鼓/琶音密度由每小节 energy 驱动
-（>0.15 贝斯 >0.25 底鼓 >0.45 军鼓+镲 >0.55 琶音 >0.8 重击切分）；
-SFX 事件 beats[].sfx；口播按 cues 精确放置并 duck；母带 tanh + -1dB。"""
+（能量驱动基础节奏；music.layers 分层覆盖，主题主奏支持低能量稀疏旋律）；
+SFX 事件 beats[].sfx；口播按 cues 精确放置并 duck；源混音采样峰值-1dB；编码时另行LUFS/真峰值母带。"""
 import argparse, json, pathlib, subprocess
 
 import numpy as np
@@ -102,6 +102,13 @@ def sfx_voice(kind, p=None):
     def tone(f0, dur, dec, h2=0.0):
         t = np.arange(int(dur * SR)) / SR
         return np.sin(2 * np.pi * f0 * t) * np.exp(-t * dec) + h2 * np.sin(2 * np.pi * 2 * f0 * t) * np.exp(-t * dec * 1.4)
+    if kind in ('brush','paper','clay'):
+        if kind=='clay':return tone(340,.09,52,.12)*.35
+        duration=float(p or (.32 if kind=='brush' else .45))
+        if not .02<=duration<=5:raise ValueError('contact SFX duration must be .02–5s')
+        t=np.arange(int(duration*SR))/SR
+        noise=bandpass(rng.normal(0,1,len(t)),450,3200)
+        return noise*np.sin(np.linspace(0,np.pi,len(t)))**1.5*(.15 if kind=='brush' else .2)
     if kind == "boom":
         t = np.arange(int(1.7 * SR)) / SR
         ph = np.cumsum(62 * np.exp(-t / 0.32) + 26) / SR
@@ -251,10 +258,13 @@ def build(project):
     N = int(dur * SR) + SR
     bpm = film.get("bpm", 100)
     beat_t, bar_t = 60 / bpm, 4 * 60 / bpm
-    bars = int(round(dur / bar_t))
+    bars = int(np.ceil(dur / bar_t))
     music = film.get("music", {})
     prog = PROG[music.get("mode", "minor")]
     arp_dens = music.get("arpDensity", 1.0)
+    density=music.get('leadDensity',.5)
+    if not isinstance(density,(int,float)) or not np.isfinite(density) or not .25<=density<=4:
+        raise ValueError('music.leadDensity must be .25–4')
     instruments = THEME_INSTRUMENTS.get(film.get('music',{}).get('instrumentTheme',film.get('theme')), {})
     lead = instruments.get('lead', lambda f,d: v_pluck(f))
     bass = instruments.get('bass', v_bass)
@@ -272,36 +282,45 @@ def build(project):
 
     bgm = np.zeros((2, N)); sfx = np.zeros((2, N)); voice = np.zeros((2, N))
 
+    arrangement_log=[]
     for bi in range(bars):
         t0 = bi * bar_t
         en = energy_at(t0 + 0.01)
+        section=next((b for b in beats if b['start']<=t0+.01<b['end']),{})
+        controls={**music.get('layers',{}),**section.get('music',{}).get('layers',{})}
+        for key,value in controls.items():
+            if key not in ('pad','bass','percussion','snare','hats','lead','shimmer') or not isinstance(value,(int,float)) or not np.isfinite(value) or not 0<=value<=2:
+                raise ValueError(f'Invalid music layer {key}: {value}')
+        gain=lambda key:controls.get(key,1)
+        lead_on=controls.get('lead',1 if instruments else int(en>.55))>0
+        arrangement_log.append({'start':round(t0,4),'section':section.get('id'),'layers':controls,'lead_active':bool(lead_on and bi>0 and en>.08)})
         name, notes, root = prog[bi % 4]
         for vi, nn in enumerate(notes):
-            place(bgm, v_pad(midi(nn), bar_t + 0.5), t0, (0.30 + en * 0.35) * 0.34,
+            place(bgm, v_pad(midi(nn), bar_t + 0.5), t0, (0.30 + en * 0.35) * 0.34 * gain('pad'),
                   pan=-0.35 if vi % 2 == 0 else 0.35)
         if en > 0.15:
             bb = [0, 2] if en < 0.6 else ([0, 1.5, 2, 3.5] if en > 0.8 else [0, 1, 2, 3])
             for k, bd in enumerate(bb):
-                place(bgm, bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72))
+                place(bgm, bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72) * gain('bass'))
         if en > 0.25:
             for bd in ([0, 2] if en < 0.6 else [0, 1, 2, 3]):
-                place(bgm, percussion(60, .5), t0 + bd * beat_t, 0.45 + en * 0.3)
+                place(bgm, percussion(60, .5), t0 + bd * beat_t, (0.45 + en * 0.3)*gain('percussion'))
         if en > 0.45:
             for bd in (1, 3):
-                place(bgm, v_snare(), t0 + bd * beat_t, 0.28 + en * 0.25)
+                place(bgm, v_snare(), t0 + bd * beat_t, (0.28 + en * 0.25)*gain('snare'))
         if en > 0.2:
             for k in range(8):
                 place(bgm, v_hat(en > 0.6 and k % 2 == 1), t0 + k * beat_t * 0.5,
-                      (0.12 if k % 2 else 0.2) * (0.7 + en * 0.5))
-        if en > 0.55 and bi > 0:
+                      (0.12 if k % 2 else 0.2) * (0.7 + en * 0.5)*gain('hats'))
+        if lead_on and en > .08 and bi > 0:
             pat = [0, 1, 2, 3, 2, 1]
-            dens = max(4, int(8 * arp_dens))
+            dens = max(1, round(4*music.get('leadDensity',.5))) if instruments or 'lead' in controls else max(4,int(8*arp_dens))
             for k in range(dens):
                 note = notes[pat[k % len(pat)] % len(notes)] + (12 if pat[k % len(pat)] >= 2 else 0)
                 place(bgm, lead(midi(note), .55), t0 + k * bar_t / dens,
-                      (0.1 + en * 0.08) * (1 if k % 4 == 0 else 0.7))
+                      (0.1 + en * 0.08) * (1 if k % 4 == 0 else 0.7)*gain('lead'))
         if bi > 0 and (bi % 8 == 0 or en > 0.85):
-            place(bgm, v_shimmer(0.3 + en * 0.2), t0)
+            place(bgm, v_shimmer((0.3 + en * 0.2)*gain('shimmer')), t0)
 
     for b in beats:
         for ev in b.get("sfx", []):
@@ -338,15 +357,19 @@ def build(project):
     duck_db = film.get("voice", {}).get("duck_db", -14)
     if speech:
         duck_g = 10 ** (duck_db / 20)
+        attack=float(film.get('voice',{}).get('duck_attack',.18))
+        release=float(film.get('voice',{}).get('duck_release',.65))
+        if not np.isfinite(attack+release) or not .01<=attack<=3 or not .01<=release<=3:
+            raise ValueError('duck_attack/duck_release must be .01–3 seconds')
         env = np.ones(N)
-        for a, b in speech:
-            i0, i1 = max(0, int((a - 0.15) * SR)), min(N, int((b + 0.15) * SR))
-            env[i0:i1] = np.minimum(env[i0:i1], duck_g)
-        # O(N) moving average, rather than O(N * 6615) direct convolution.
-        window = int(.15*SR)
-        padded = np.pad(env,(window//2,window-1-window//2))
-        cumulative = np.concatenate(([0.],np.cumsum(padded)))
-        env = (cumulative[window:]-cumulative[:-window])/window
+        for a,b in speech:
+            # Envelope is derived from intervals; overlapping speech uses deepest gain.
+            for start,end,g0,g1 in [(a-attack,a,1,duck_g),(a,b+.08,duck_g,duck_g),(b+.08,b+.08+release,duck_g,1)]:
+                i0,i1=max(0,int(start*SR)),min(N,int(end*SR))
+                if i1>i0:
+                    positions=np.arange(i0,i1)/SR
+                    curve=g0+(g1-g0)*np.clip((positions-start)/(end-start),0,1)
+                    env[i0:i1]=np.minimum(env[i0:i1],curve)
         bgm *= env
         sfx *= (1 + env) / 2
 
@@ -363,7 +386,6 @@ def build(project):
         return x
 
     mix = master(bgm * 0.95 + sfx) + voice[:, :int(dur*SR)]
-    mix = np.tanh(mix * 1.15) / np.tanh(1.15)
     peak = np.max(np.abs(mix))
     if peak > 0: mix = mix / peak * (10 ** (-1.0 / 20))
 
@@ -378,6 +400,8 @@ def build(project):
     write_wav(proj / "audio" / "sfx.wav", master(sfx))
     write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
+    from project import write_json
+    write_json(proj/'checks/arrangement.json',{'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
     mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")
