@@ -14,7 +14,7 @@
     const aa = _perm[_perm[X] + Y], ab = _perm[_perm[X] + Y + 1];
     const ba = _perm[_perm[X + 1] + Y], bb = _perm[_perm[X + 1] + Y + 1];
     const x1 = aa + (ba - aa) * u, x2 = ab + (bb - ab) * u;
-    return x1 + (x2 - x1) * v;
+    return (x1 + (x2 - x1) * v) / 127.5 - 1;
   }
   function fbm(x, y, oct) {
     let v = 0, a = 0.5, f = 1;
@@ -57,9 +57,9 @@
     const layers = cfg.layers || 3;
     for (let L = 0; L < layers; L++) {
       const depth = L / layers;                 // 0=近（浓）→ 1=远（淡）
-      const alpha = 0.85 - depth * 0.65;
-      const yOffset = H * (0.30 + depth * 0.18);
-      const amp = 60 - depth * 30;
+      const alpha = 0.16 - depth * 0.10;
+      const yOffset = H * (0.72 + depth * 0.10);
+      const amp = H * (0.035 - depth * 0.015);
       const freq = 0.003 + depth * 0.002;
       const speed = 0.02 + depth * 0.01;
       ctx.beginPath();

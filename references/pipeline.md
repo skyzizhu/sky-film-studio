@@ -12,6 +12,8 @@ python3 "$S/engine/voice.py" plan --project "$FILM" --apply
 python3 "$S/engine/check.py" preflight --project "$FILM"
 python3 "$S/engine/render.py" --project "$FILM" --keys
 python3 "$S/engine/check.py" sheet --project "$FILM" --n 4
+# 检查连续动作：无声 MP4，绝对时间，不重建/覆盖全片 frames 或构建指纹
+python3 "$S/engine/render.py" --project "$FILM" --clip 10,13 --output "$FILM/checks/motion.mp4" --strict-fonts --determinism
 # 看图、看片段、修改并复查
 python3 "$S/engine/audio.py" build --project "$FILM"
 python3 "$S/engine/check.py" auto --project "$FILM"
@@ -33,7 +35,7 @@ C 模式 voice:{}，字幕在 film.subtitles 中；不运行 voice。D 模式使
 {"title":"片名","theme":"tech","duration":60,"fps":30,"bpm":105,
  "width":1920,"height":1080,"progress":false,
  "music":{"mode":"minor","arpDensity":1},
- "voice":{"cues":"audio/cues.json","duck_db":-8,"timing":"tts"},
+ "voice":{"cues":"audio/cues.json","duck_db":-14,"timing":"tts"},
  "beats":[{"id":"b0","scene":"s0","start":0,"end":60,
            "sentences":[0],"energy":0.5,"sfx":[],"note":"主角/变化/构图"}],
  "ending_fade":[58,59.5]}
@@ -41,7 +43,7 @@ C 模式 voice:{}，字幕在 film.subtitles 中；不运行 voice。D 模式使
 
 示例只说明字段，实际句子需落在所属拍内、片末淡出之前；拍连续覆盖全片。fps 不写死在编码命令。frames 数为 ceil(duration×fps)，没有额外片尾帧。film.json 是主题/进度的权威，旧 FILM.theme 只作为缺省兼容。
 
-字幕：句级时间窗内按实际字体测宽，最多两行一页，长句分页而不丢字；分页按文本长度分摊句长，属于阅读排版，不是词级对齐。默认最多 12 字符/秒（可用 subtitles_max_cps 按语言调整），过快应修改时长或文稿。
+字幕：默认保留底部预留区；仅当已核对构图时用全局或每拍 `subtitleY` 指定像素基线。回声字/typography 字段不会自动上移字幕。浅底主题关闭黑色文字光晕。句级时间窗内按实际字体测宽，最多两行一页，长句分页而不丢字；分页按文本长度分摊句长，属于阅读排版，不是词级对齐。默认最多 12 字符/秒（可用 subtitles_max_cps 按语言调整），过快应修改时长或文稿。
 
 claims.json：
 

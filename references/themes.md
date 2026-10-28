@@ -47,3 +47,17 @@ tech: {
 ## 新增主题
 
 复制最接近的主题改 palette/bpm/decor；music.mode 支持 `minor | major | pentatonic`（audio.py 内置三套和弦进行）。新主题验证过一支片后把速查表补一行。
+
+## 专属渲染器
+
+| key | 画面 | 默认音色 |
+|---|---|---|
+| ink | 浅宣纸、墨色山脊、书法字体 | 合成古筝与太鼓 |
+| whiteboard | 浅白板、手写字体 | 合成尼龙弦 |
+| pixel | 保持目标宽高比的低分辨率量化 | 方波与噪声打击 |
+| glitch | RGB 分离、切片与扫描线 | 失真锯齿 |
+| screencast | 深色编辑器背景 | FM 电钢 |
+
+`theme` 提供色板与默认渲染器；`renderer` 可显式覆盖。`music.instrumentTheme` 可独立选上述音色；mode/BPM 仍以 film.json 为准。纯英文装饰字可使用随项目复制的 Orbitron 或 Press Start 2P，中文正文保留完整中文字库。不要给中文整行强配不含中文的字体。
+
+渲染器原文件在 themes/renderers/*.js；修改后重建 all.js 并测试实际装载的 bundle。SVG 图标用同步 Path2D 保留原始曲线；只有旧接口需要逐笔路径时才惰性采样。未知实体仍应报错，自定义部件与动作优先于图标兜底。

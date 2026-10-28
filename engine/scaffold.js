@@ -13,12 +13,12 @@ async function bootScaffold() {
   const canvas = document.getElementById("c");
   CTX = canvas.getContext("2d", { alpha: false });
   initGrain();
-  const themeKey = (window.FILM && window.FILM.theme) || "default";
-  TH = window.THEMES[themeKey] || window.THEMES.default;
-  try { FILM_META = await (await fetch("film.json")).json(); }
-  catch (e) {
-    FILM_META = (window.FILM && window.FILM.meta) || { duration: 60, fps: 30, beats: [] };
-  }
+  const response = await fetch("film.json");
+  if (!response.ok) throw new Error("film.json 加载失败");
+  FILM_META = await response.json();
+  const themeKey = FILM_META.theme || window.FILM?.theme || "default";
+  TH = window.THEMES[themeKey];
+  if (!TH) throw new Error(`未知主题 ${themeKey}`);
   if (window.Renderer) Renderer.init(FILM_META);
   // 任意比例：画布尺寸由 film.json 决定
   {
@@ -28,49 +28,76 @@ async function bootScaffold() {
     cv.width = W; cv.height = H;
     cv.style.width = W + "px"; cv.style.height = H + "px";
   }
-  try { CUES = await (await fetch("audio/cues.json")).json(); } catch (e) { CUES = null; }
+  const cuesPath = FILM_META.voice?.cues;
+  if (cuesPath) {
+    const response = await fetch(cuesPath);
+    if (!response.ok) throw new Error(`cues 加载失败 ${cuesPath}`);
+    CUES = await response.json();
+  }
   if (window.__fontsReady) await window.__fontsReady;
   await document.fonts.ready;
-  if (window.initIcons) initIcons();
-  if (window.preloadSVGIcons) preloadSVGIcons();   // 图标路径采样（确定性）
+  if (window.__assetsReady) await window.__assetsReady;
+  if (window.initIcons) initIcons();   // 图标路径采样（确定性）
+  for (const beat of FILM_META.beats || [])
+    if (typeof window.FILM?.scenes?.[beat.scene] !== "function")
+      throw new Error(`未定义场景 ${beat.scene}`);
+  window.SUBTITLE_LAYOUT = makeSubtitleLayout(CTX, CUES?.sentences ||
+    (FILM_META.subtitles || []).map(([start,end,text])=>({start,end,text})));
+  if (window.preloadSVGIcons) await preloadSVGIcons();
   window.__ready = true;
 }
 
 // ---------- 字幕（cues 驱动；无 cues 用 film.json.subtitles [start,end,text]） ----------
-function drawSubtitle(ctx, t) {
-  let text = null, a = 0;
-  if (CUES && CUES.sentences) {
-    const s = CUES.sentences.find(q => t >= q.start - 0.05 && t <= q.end + 0.25);
-    if (s) {
-      text = s.text;
-      a = seg(t, s.start - 0.05, s.start + 0.15) * (1 - seg(t, s.end + 0.05, s.end + 0.25));
+function makeSubtitleLayout(ctx, sentences) {
+  const size = Math.min(37, Math.max(20, W*.035));
+  const spacing = 2;
+  ctx.save(); ctx.font = FONT(600,size);
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+  const width = W-Math.max(80,W*.08);
+  const layout = [];
+  for (const sentence of sentences) {
+    const chars = Array.from(sentence.text || "");
+    if (!chars.length) continue;
+    const lines = []; let line = "";
+    for (const ch of chars) {
+      if (ch === "\n") { lines.push(line); line=""; continue; }
+      const next = line+ch;
+      if (line && ctx.measureText(next).width + Array.from(next).length*spacing > width) {
+        lines.push(line); line=ch;
+      } else line=next;
     }
-  } else if (FILM_META.subtitles) {
-    const s = FILM_META.subtitles.find(q => t >= q[0] && t <= q[1]);
-    if (s) text = s[2], a = seg(t, s[0], s[0] + 0.3) * (1 - seg(t, s[1] - 0.3, s[1]));
+    if (line) lines.push(line);
+    const pages = [];
+    for (let i=0;i<lines.length;i+=2) pages.push(lines.slice(i,i+2));
+    const total = pages.reduce((sum,lines)=>sum+lines.join("").length,0);
+    let offset = 0;
+    pages.forEach((lines,i)=>{
+      const count = lines.join("").length;
+      const start = sentence.start+(sentence.end-sentence.start)*offset/total;
+      offset += count;
+      const end = i===pages.length-1 ? sentence.end : sentence.start+(sentence.end-sentence.start)*offset/total;
+      layout.push({start,end,lines,size,spacing,chars:count,
+        cps: count/Math.max(.001,end-start)});
+    });
   }
-  if (!text || a <= 0) return;
-  // 每行字数随画幅自适应；最多 3 行；字幕区锚定画布底部
-  const cpl = Math.max(12, Math.min(28, Math.floor((W - 140) / 39)));
-  const lines = [];
-  for (let i = 0; i < text.length && lines.length < 3; i += cpl) lines.push(text.slice(i, i + cpl));
-  // v8：字幕位置智能——钩子拍/关键拍往上（给排版层级让位），普通拍靠下
-  let subY;
-  const beats3 = (FILM_META.beats || []);
-  let curBeat = null;
-  for (const b of beats3) if (t >= b.start) curBeat = b;
-  if (curBeat && (curBeat.typography || curBeat.echoText)) {
-    subY = H * 0.72;    // 关键拍：字幕在中偏下（配合 typographyScale）
-  } else if ((window.FILM && window.FILM.timeline) || progressOn()) {
-    subY = H - 160;     // 有轨/轴：给轨让位
-  } else {
-    subY = H - 92;      // 默认贴底
-  }
-  // 不用全宽衬底带（会形成横向分割感）：只给文字本身加深色投影
-  lines.forEach((ln, i) => {
-    const y = subY - (lines.length - 1 - i) * 46;
-    txt(ctx, ln, W / 2, y, { size: 37, weight: 600, alpha: a * 0.85, ls: 3, glow: 18, glowColor: "rgba(0,0,0,0.95)" });
-    txt(ctx, ln, W / 2, y, { size: 37, weight: 600, alpha: a, ls: 3 });
+  ctx.restore();
+  return layout;
+}
+
+function drawSubtitle(ctx,t) {
+  const page = window.SUBTITLE_LAYOUT.find(q=>t>=q.start && t<q.end);
+  if (!page) return;
+  const fade = Math.min(.1,(page.end-page.start)/4);
+  const a = seg(t,page.start,page.start+fade)*(1-seg(t,page.end-fade,page.end));
+  const beat = (FILM_META.beats || []).find(b=>t>=b.start && t<b.end);
+  const explicitY = beat?.subtitleY ?? FILM_META.subtitleY;
+  const subY = Number.isFinite(explicitY) ? explicitY :
+    (window.FILM?.timeline || progressOn() ? H-160 : H-92);
+  page.lines.forEach((line,i)=>{
+    const y = subY-(page.lines.length-1-i)*page.size*1.25;
+    const options = {size:page.size,weight:600,alpha:a,ls:page.spacing};
+    if (!TH.light) txt(ctx,line,W/2,y,{...options,glow:10,glowColor:"rgba(0,0,0,0.95)"});
+    txt(ctx,line,W/2,y,options);
   });
 }
 
@@ -128,6 +155,7 @@ function drawFrame(t) {
   const ctx = CTX;
   const dur = FILM_META.duration || 60;
   t = Math.max(0, Math.min(t, dur - 1e-3));
+  if (ctx.reset) ctx.reset();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
@@ -140,6 +168,18 @@ function drawFrame(t) {
     if (decorFn && FILM_META.decor !== false) decorFn(ctx, t);
   }
 
+  // 回声字：钩子拍和关键拍的背景漂移轮廓字（v8 视觉纵深核心）
+  if (window.echoText && FILM_META.echo !== false) {
+    const beats2 = (FILM_META.beats || []);
+    let cur2 = null;
+    for (const b of beats2) if (t >= b.start) cur2 = b;
+    if (cur2 && cur2.echoText) {
+      echoText(ctx, t, { text: cur2.echoText, size: cur2.echoSize || 500,
+        x: cur2.echoX ?? W * 0.75, y: cur2.echoY ?? H * 0.35,
+        alpha: 0.035, phase: cur2.start });
+    }
+  }
+  if (window.Renderer) Renderer.begin(ctx,t,W,H);
   const beats = (FILM_META.beats || []).slice().sort((a2, b2) => a2.start - b2.start);
   if (beats.length && window.FILM && window.FILM.scenes) {
     let beat = beats[0];
@@ -179,23 +219,12 @@ function drawFrame(t) {
   drawDust(ctx, t, { alpha: 0.85 });
   drawLightBand(ctx, t, TH.lightBand ?? 0.045);
   drawVignette(ctx, window.FILM && window.FILM.vignetteExtra ? window.FILM.vignetteExtra(t) : 0);
-  if (!_rnd || !_rnd.post) drawGrain(ctx, Math.round(t * 30), TH.grain ?? 0.055);
-  // 回声字：钩子拍和关键拍的背景漂移轮廓字（v8 视觉纵深核心）
-  if (window.echoText && FILM_META.echo !== false) {
-    const beats2 = (FILM_META.beats || []);
-    let cur2 = null;
-    for (const b of beats2) if (t >= b.start) cur2 = b;
-    if (cur2 && cur2.echoText) {
-      echoText(ctx, t, { text: cur2.echoText, size: cur2.echoSize || 500,
-        x: cur2.echoX ?? W * 0.75, y: cur2.echoY ?? H * 0.35,
-        alpha: 0.035, phase: cur2.start });
-    }
-  }
+  if (!_rnd || !_rnd.post) drawGrain(ctx, Math.round(t * (FILM_META.fps || 30)), TH.grain ?? 0.055);
   if (window.Renderer) Renderer.overlay(ctx, t, W, H);
 
   const ef = FILM_META.ending_fade;
   if (ef) {
-    const black = seg(t, Math.max(ef[0], dur - 1.5), Math.min(ef[1], dur));
+    const black = seg(t, ef[0], ef[1]);
     if (black > 0) { ctx.fillStyle = `rgba(3,2,1,${black})`; ctx.fillRect(0, 0, W, H); }
   }
 }
@@ -210,4 +239,4 @@ window.renderBatch = function (t0, n, dt, q) {
   return out;
 };
 
-bootScaffold();
+bootScaffold().catch(error=>{ window.__bootError=error.message; console.error(error); });

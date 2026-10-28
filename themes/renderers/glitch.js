@@ -7,7 +7,7 @@
   let _faCtx = null, _fbCtx = null, _fcCtx = null;
 
   function ensureBuffers(W, H) {
-    if (!_frameA) {
+    if (!_frameA || _frameA.width !== W || _frameA.height !== H) {
       _frameA = document.createElement("canvas"); _frameA.width = W; _frameA.height = H;
       _frameB = document.createElement("canvas"); _frameB.width = W; _frameB.height = H;
       _frameC = document.createElement("canvas"); _frameC.width = W; _frameC.height = H;
@@ -64,6 +64,8 @@
     // RGB 三通道分离 + 切片位移
     post(ctx, t, W, H) {
       ensureBuffers(W, H);
+      // Reset compositing before copying; previous tint must not multiply the next frame.
+      for (const c of [_faCtx,_fbCtx,_fcCtx]) c.globalCompositeOperation='source-over';
       // 复制当前帧到三个缓冲区
       _faCtx.clearRect(0, 0, W, H); _faCtx.drawImage(ctx.canvas, 0, 0);
       _fbCtx.clearRect(0, 0, W, H); _fbCtx.drawImage(ctx.canvas, 0, 0);
@@ -101,7 +103,7 @@
         const dx = (rnd() - 0.5) * off * 6;
         ctx.save();
         ctx.beginPath(); ctx.rect(0, y, W, h2); ctx.clip();
-        ctx.drawImage(ctx.canvas, dx, y - y + y, W, h2, 0, y, W, h2);
+        ctx.drawImage(ctx.canvas, 0, y, W, Math.min(h2,H-y), dx, y, W, Math.min(h2,H-y));
         ctx.restore();
       }
     },

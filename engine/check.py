@@ -1,229 +1,235 @@
 #!/usr/bin/env python3
-"""sky-film-studio · check.py —— 自查
-  sheet  --project <dir> [--n 4]   checks/key_*.jpg 拼大图（960×540/格）
-  audio  --project <dir>           mix.wav 分段 RMS / 峰值 / 淡出校验
-  edges  --project <dir> [--thr 32] [--every 15]  低阈值四边扫描（抓弱透明元素被裁）
-  auto   --project <dir> [--keys "auto"]          一键自检回路：静帧+拼图+edges+audio+报告（修复后重跑）
-  storyboard --project <dir>                      教学逻辑 lint：钩子/落点/拍场景/数字来源/cues 落位"""
-import argparse, glob, json, subprocess, sys
+"""Project checks: preflight / storyboard / sheet / audio / edges / auto / delivery.
+Preflight is cheap. Auto validates audio then renders only stale frames. Delivery
+also verifies the encoded MP4. Image-edge heuristics are advisory, never a proof
+that text, facts or illustrations are correct.
+"""
+import argparse
+import json
+import math
+import pathlib
+import subprocess
+import sys
+import wave
+from project import (timeline_errors, cues_path, number, build_current, file_hash)
 
 
-def cmd_sheet(args):
-    import os
-    os.chdir(args.project)
-    files = sorted(glob.glob("checks/key_*.jpg"))
-    if not files:
-        sys.exit("checks/ 没有 key_*.jpg；先 render.py --keys")
-    n = args.n
-    groups = [files[i:i + n] for i in range(0, len(files), n)]
-    for gi, g in enumerate(groups):
-        inputs = []
-        for f in g:
-            inputs += ["-i", f]
-        flt = "".join(f"[{i}:v]scale=960:540[r{i}];" for i in range(len(g)))
-        rows = [g[i:i + n] for i in range(0, len(g), n)]
-        layout = []
-        for r, row in enumerate(rows):
-            for c in range(len(row)):
-                layout.append(f"{c*960}_{r*540}")
-        out = f"checks/sheet_{gi}.jpg"
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
-                        "-filter_complex", flt + f"{len(g)}xstack=inputs={len(g)}:layout={'|'.join(layout)}",
-                        "-frames:v", "1", out], check=True)
-        print("→", out, f"({len(g)} 格)")
+def load(project):
+    project = pathlib.Path(project).resolve()
+    film = json.loads((project/'film.json').read_text(encoding='utf-8'))
+    path = cues_path(project, film)
+    cues = json.loads(path.read_text(encoding='utf-8')) if film.get('voice',{}).get('cues') and path.is_file() else None
+    return project, film, cues
 
 
-def cmd_audio(args):
-    import os
-    import wave
+def probe(path):
+    return json.loads(subprocess.run(['ffprobe','-v','error','-show_format','-show_streams',
+                      '-of','json',str(path)],check=True,capture_output=True,text=True).stdout)
+
+
+def preflight(project, strict=False):
+    project, film, cues = load(project)
+    errors, warnings = timeline_errors(film,cues), []
+    if errors:
+        for error in errors: print('✗',error)
+        return False
+    if film.get('voice',{}).get('cues') and cues is None:
+        errors.append('配置了 voice.cues 但文件不存在')
+    for name in ('index.html','storyboard.js','data.js'):
+        if not (project/name).is_file(): errors.append(f'缺 {name}')
+    if cues:
+        if cues.get('audio') and not cues.get('alignment',{}).get('reviewed'):
+            (errors if strict else warnings).append('录音文字/时间码尚未人工或强制对齐校对（alignment.reviewed）')
+        for i,sentence in enumerate(cues.get('sentences',[])):
+            if not isinstance(sentence,dict): continue
+            if not sentence.get('text'):
+                errors.append(f'句 {i} 缺字幕文本；VAD 不会转录文字')
+            text = sentence.get('text','')
+            duration = sentence.get('end',0)-sentence.get('start',0)
+            if duration > 0 and len(text.replace(' ',''))/duration > film.get('subtitles_max_cps',12):
+                (errors if strict else warnings).append(f'句 {i} 字幕阅读速度过快；拆句/改稿或延长')
+        files = {cues['audio']} if cues.get('audio') else {s.get('file','') for s in cues.get('sentences',[]) if isinstance(s,dict)}
+        for name in files:
+            path = project/name
+            if not name or not path.is_file():
+                errors.append(f'缺语音文件 {name}'); continue
+            info = probe(path)
+            actual = float(info['format']['duration'])
+            if cues.get('audio'):
+                if any(s.get('end',0)>actual+.03 for s in cues['sentences']):
+                    errors.append('录音 cues 超出源音频')
+            else:
+                for i,sentence in enumerate(cues['sentences']):
+                    if sentence.get('file') == name and abs(actual-(sentence['end']-sentence['start'])) > .06:
+                        errors.append(f'句 {i} 音频时长与 cues 不符')
+        fade = film.get('ending_fade',[film['duration']])[0]
+        if any(s.get('end',0)>fade+.002 for s in cues.get('sentences',[]) if isinstance(s,dict)):
+            errors.append('结尾淡出会截断口播或字幕')
+    # Silent-mode subtitles use the same interval and readability invariants.
+    previous = 0
+    for i,row in enumerate(film.get('subtitles',[])):
+        if not (isinstance(row,list) and len(row)==3 and number(row[0]) and number(row[1]) and
+                previous <= row[0] < row[1] <= film['duration'] and isinstance(row[2],str)):
+            errors.append(f'静默字幕 {i} 非法或重叠'); continue
+        previous = row[1]
+        if len(row[2])/(row[1]-row[0]) > film.get('subtitles_max_cps',12):
+            (errors if strict else warnings).append(f'静默字幕 {i} 阅读速度过快')
+    claims_file = project/'claims.json'
+    if not claims_file.is_file():
+        (errors if strict else warnings).append('缺 claims.json；需要记录事实/示例与审查状态')
+    else:
+        evidence = json.loads(claims_file.read_text(encoding='utf-8'))
+        if not evidence.get('reviewed'):
+            (errors if strict else warnings).append('事实覆盖尚未审查（claims.reviewed）')
+        ids=set()
+        for claim in evidence.get('claims',[]):
+            cid=claim.get('id')
+            if not cid or cid in ids: errors.append('claim id 缺失或重复')
+            ids.add(cid)
+            if claim.get('kind') == 'example':
+                if not claim.get('display_label'): errors.append(f'{cid} 示例缺屏幕标识 display_label')
+            else:
+                required=('statement','source','accessed','data_key')
+                if any(not claim.get(k) for k in required): errors.append(f'{cid} 缺主张/来源/访问日期/数据关联')
+                if not claim.get('verified'): errors.append(f'{cid} 尚未核实')
+    if film.get('duration',0) and film.get('beats') and film['beats'][0]['end']>5:
+        warnings.append('首拍较长，请看片确认前三秒已建立信息焦点')
+    for error in errors: print('✗',error)
+    for warning in warnings: print('⚠',warning)
+    if not errors: print('✓ 结构预检通过' + ('（交付严格模式）' if strict else '（不代表事实/视觉验收通过）'))
+    return not errors
+
+
+def sheet(project,n=4):
+    from PIL import Image,ImageOps,ImageDraw
+    project=pathlib.Path(project)
+    files=sorted((project/'checks').glob('key_*.jpg'))
+    if not files: raise SystemExit('先渲染关键帧')
+    columns=math.ceil(math.sqrt(n)); rows=math.ceil(n/columns)
+    for group in range(0,len(files),n):
+        output=Image.new('RGB',(columns*640,rows*390),(25,25,25))
+        draw=ImageDraw.Draw(output)
+        for i,path in enumerate(files[group:group+n]):
+            with Image.open(path) as frame:
+                thumb=ImageOps.contain(frame.convert('RGB'),(640,360))
+                x,y=(i%columns)*640,(i//columns)*390
+                output.paste(thumb,(x+(640-thumb.width)//2,y+(360-thumb.height)//2))
+                draw.text((x+12,y+365),path.name,fill='white')
+        output.save(project/'checks'/f'sheet_{group//n}.jpg',quality=92)
+    print(f'✓ {len(files)} 帧等比拼图（每页最多 {n} 格）；需逐格看图')
+
+
+def audio(project):
     import numpy as np
-    os.chdir(args.project)
-    w = wave.open("audio/mix.wav")
-    d = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).reshape(-1, 2).astype(np.float32) / 32768
-    sr = w.getframerate()
-    dur = d.shape[0] / sr
-    peak = float(np.abs(d).max())
-    ok = True
-    for i in range(int(dur // 5) + 1):
-        s = d[int(i * 5 * sr):int((i + 1) * 5 * sr)]
-        if len(s):
-            print(f"{int(i*5):>3}-{int(min((i+1)*5, dur)):<3}s rms={float(np.sqrt((s**2).mean())):.3f}")
-    if peak > 0.892:
-        print(f"✗ 峰值 {peak:.3f} 超 -1dB"); ok = False
-    else:
-        print(f"✓ 峰值 {peak:.3f} (≤ -1dB)")
-    tail = d[-int(0.4 * sr):]
-    if float(np.abs(tail).max()) > 0.01:
-        print("✗ 结尾 0.4s 非静音（淡出未落底）"); ok = False
-    else:
-        print("✓ 结尾静音（完整淡出）")
-    sys.exit(0 if ok else 1)
+    project,film,_=load(project)
+    path=project/'audio/mix.wav'
+    if not path.is_file(): print('✗ 缺 audio/mix.wav'); return False
+    with wave.open(str(path)) as stream:
+        if stream.getsampwidth()!=2: print('✗ 混音必须为 PCM16'); return False
+        samples=np.frombuffer(stream.readframes(stream.getnframes()),dtype=np.int16).astype(float)/32768
+        channels,rate=stream.getnchannels(),stream.getframerate()
+    if not len(samples): print('✗ 混音为空'); return False
+    duration=len(samples)/channels/rate
+    peak=float(np.abs(samples).max())
+    ok=abs(duration-film['duration']) <= 1/rate+.001 and peak<=10**(-1/20)+.0001
+    if float(np.abs(samples[-max(1,int(.05*rate*channels)):]).max())>.01:
+        print('✗ 混音结尾未淡出'); ok=False
+    print(f"{'✓' if ok else '✗'} 音频 {duration:.3f}s / peak={peak:.4f} / rms={np.sqrt((samples**2).mean()):.4f}")
+    return ok
 
 
+def edges(project,every=15,threshold=32):
+    import numpy as np
+    from PIL import Image
+    project,film,_=load(project)
+    files=sorted((project/'frames').glob('f*.jpg'))
+    if not files: raise SystemExit('缺帧；先最终渲染')
+    count=0
+    for path in files[::max(1,every)]:
+        time=int(path.stem[1:])/film.get('fps',30)
+        if time<1.6: continue
+        with Image.open(path) as frame: pixels=np.array(frame.convert('L'))
+        band=max(2,round(min(pixels.shape)*.024))
+        if any(float((area>threshold).mean())>.02 for area in (pixels[:band],pixels[-band:],pixels[:,:band],pixels[:,-band:])):
+            count+=1
+    print(f'⚠ 边缘亮度提示：{count} 个采样帧；背景/合法出血也会命中，需看图判断。未作为硬门禁')
+    return True
 
-def cmd_auto(args):
-    """一键自检回路（Borrowed from Manim agent 论文的 self-correction）：
-    静帧(自动按拍采样) → 拼图 → 低阈值边缘扫描 → 音频校验 → 结构化报告。
-    Agent 流程：auto → 看图+读报告 → 修复 → 再 auto，直到全绿再 --full。"""
-    import json as _json, subprocess as _sp, sys as _sys
-    import pathlib as _pl
-    proj = _pl.Path(args.project).resolve()
-    film = _json.loads((proj / "film.json").read_text(encoding="utf-8"))
-    # 自动按拍采样关键帧（拍中点）+ 拍首（转场/入场检查）
-    keys = args.keys
-    if keys == "auto":
-        ts = []
-        for b in film.get("beats", []):
-            ts.append(round(b["start"] + 0.12, 2))
-            ts.append(round((b["start"] + b["end"]) / 2, 2))
-        keys = ",".join(dict.fromkeys(str(t) for t in ts))
-    print("── 0/5 全片渲染（字幕烧帧，一并生成）──")
-    r = _sp.run([_sys.executable, str(_pl.Path(__file__).resolve().parent / "render.py"),
-                 "--project", str(proj), "--full"])
-    if r.returncode != 0:
-        raise SystemExit("✗ 全片渲染失败")
-    print(f"── 1/5 静帧采样（{keys}）──")
-    r = _sp.run([_sys.executable, str(_pl.Path(__file__).resolve().parent / "render.py"),
-                 "--project", str(proj), "--keys", keys])
-    if r.returncode != 0:
-        raise SystemExit("✗ 静帧渲染失败（先修 JS 错误）")
-    print("── 2/5 拼图 ──")
-    _sp.run([_sys.executable, __file__, "sheet", "--project", str(proj), "--n", "4"])
-    print("── 3/5 低阈值边缘扫描 ──")
-    r_edge = _sp.run([_sys.executable, __file__, "edges", "--project", str(proj)])
-    print("── 4/5 音频校验 ──")
-    r_audio = (proj / "audio" / "mix.wav").is_file() and \
-        _sp.run([_sys.executable, __file__, "audio", "--project", str(proj)]).returncode == 0
-    has_mix = (proj / "audio" / "mix.wav").is_file()
-    print("── 5/5 storyboard lint ──")
-    print("\n═══════ 自检报告 ═══════")
-    print(f"  静帧采样: ✓ {keys}")
-    print(f"  拼图:     → {proj}/checks/sheet_*.jpg（逐格看：遮挡/压盖/裁切/乱码/曝光）")
-    print(f"  边缘扫描: {'✓ 全清' if r_edge.returncode == 0 else '✗ 有贴边（见上方帧号）'}")
-    print(f"  音频:     {'✓' if (not has_mix or r_audio) else '✗ 峰值/淡出问题'}"
-          + ("" if has_mix else "（尚未 build，跳过）"))
-    lint = _sp.run([_sys.executable, __file__, "storyboard", "--project", str(proj)],
-                   capture_output=True, text=True)
-    print(lint.stdout)
-    ok = r_edge.returncode == 0 and (not has_mix or r_audio) and lint.returncode == 0
-    print("═══════ 结论:", "✅ 全绿，可以 render --full" if ok else "❌ 按上面修，修完重跑 auto", "═══════")
+
+def delivery(project,video):
+    project,film,_=load(project)
+    ok=preflight(project,True) and audio(project)
+    for kind in ('audio','frames','video'):
+        if not build_current(project,kind): print(f'✗ {kind} 已过期或缺构建记录'); ok=False
+    if not video: print('✗ delivery 必须指定 --video'); return False
+    path=pathlib.Path(video).resolve()
+    info=probe(path)
+    streams=info.get('streams',[])
+    v=next((s for s in streams if s['codec_type']=='video'),{})
+    a=next((s for s in streams if s['codec_type']=='audio'),{})
+    fps=film.get('fps',30)
+    if v.get('codec_name')!='h264' or a.get('codec_name')!='aac' or v.get('pix_fmt')!='yuv420p':
+        print('✗ 成片编码不是 H.264/yuv420p + AAC'); ok=False
+    if v.get('width')!=film.get('width',1920) or v.get('height')!=film.get('height',1080):
+        print('✗ 成片尺寸不符'); ok=False
+    rate=v.get('avg_frame_rate','0/1').split('/')
+    actual_fps=float(rate[0])/float(rate[1]) if float(rate[1]) else 0
+    if abs(actual_fps-fps)>.01 or abs(float(info['format']['duration'])-film['duration'])>max(2/fps,.06):
+        print('✗ 成片帧率或时长不符'); ok=False
+    stamp=project/'build/video.json'
+    if not stamp.is_file() or json.loads(stamp.read_text()).get('sha256')!=file_hash(path):
+        print('✗ 成片与编码记录不一致'); ok=False
+    result={'technical_passed':ok,'manual_review_required':['画面辨识度/结构与遮挡','首句/数字句/末句试听','字幕完整性与事实来源']}
+    from project import write_json
+    write_json(project/'checks/delivery.json',result)
+    print('✓ 编码与技术检查通过；仍需完成观看/试听验收' if ok else '✗ 交付检查未通过')
+    return ok
+
+
+def auto(args):
+    project,film,_=load(args.project)
+    if not preflight(project,True): return False
+    engine=pathlib.Path(__file__).parent
+    def run(name,*options):
+        subprocess.run([sys.executable,str(engine/name),'--project',str(project),*options],check=True)
+    keys=args.keys
+    if keys=='auto':
+        times=[]
+        for beat in film['beats']:
+            for offset in (.05,.2,.5,.9):
+                times.append(round(beat['start']+(beat['end']-beat['start'])*offset,3))
+        keys=','.join(map(str,sorted(set(times))))
+    run('render.py','--keys',keys,'--determinism','--strict-fonts')
+    sheet(project,args.n)
+    if not build_current(project,'audio'):
+        subprocess.run([sys.executable,str(engine/'audio.py'),'build','--project',str(project)],check=True)
+    if not audio(project): return False
+    if not build_current(project,'frames'):
+        run('render.py','--full','--determinism','--strict-fonts')
+    edges(project,args.every,args.thr)
+    print('✓ 自动技术检查通过；关键帧与短片段需人工观看，编码后另跑 delivery')
+    return True
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('cmd',choices=['preflight','storyboard','sheet','audio','edges','auto','delivery'])
+    parser.add_argument('--project',default='.')
+    parser.add_argument('--strict',action='store_true')
+    parser.add_argument('--video')
+    parser.add_argument('--n',type=int,default=4)
+    parser.add_argument('--every',type=int,default=15)
+    parser.add_argument('--thr',type=int,default=32)
+    parser.add_argument('--keys',default='auto')
+    args=parser.parse_args()
+    if args.n<1: parser.error('--n 须为正整数')
+    if args.cmd in ('preflight','storyboard'): ok=preflight(args.project,args.strict)
+    elif args.cmd=='sheet': sheet(args.project,args.n); ok=True
+    elif args.cmd=='audio': ok=audio(args.project)
+    elif args.cmd=='edges': ok=edges(args.project,args.every,args.thr)
+    elif args.cmd=='auto': ok=auto(args)
+    else: ok=delivery(args.project,args.video)
     raise SystemExit(0 if ok else 1)
 
 
-def cmd_storyboard(args):
-    """教学逻辑 lint（Borrowed from pedagogy-aware planning）：钩子/场景/落点/数字来源/cues 落位/时长边界。"""
-    import json as _json, re as _re
-    import pathlib as _pl
-    proj = _pl.Path(args.project).resolve()
-    film = _json.loads((proj / "film.json").read_text(encoding="utf-8"))
-    sb = (proj / "storyboard.js").read_text(encoding="utf-8") if (proj / "storyboard.js").is_file() else ""
-    data = (proj / "data.js").read_text(encoding="utf-8") if (proj / "data.js").is_file() else ""
-    cues = _json.loads((proj / "audio" / "cues.json").read_text(encoding="utf-8")) \
-        if (proj / "audio" / "cues.json").is_file() else None
-    warns, errs = [], []
-    dur, beats = film.get("duration", 0), film.get("beats", [])
-    if not beats: errs.append("没有 beats")
-    if not (30 <= dur <= 300): errs.append(f"时长 {dur:.0f}s 超出 30–300 边界")
-    # 1) 钩子：无口播片 ≤3.2s；有口播片看垫层（句末+0.6 后还空 >1.5s 就是虚胖）
-    if beats:
-        hl = beats[0]["end"] - beats[0]["start"]
-        if cues and cues.get("sentences") and beats[0].get("sentences"):
-            s0end = cues["sentences"][beats[0]["sentences"][-1]]["end"]
-            if beats[0]["end"] - s0end - 0.6 > 1.5:
-                warns.append(f"钩子拍垫层过长：句末 {s0end:.1f}s 拍末 {beats[0]['end']:.1f}s（砍 1 小节）")
-        elif hl > 3.2:
-            warns.append(f"钩子拍 {hl:.1f}s > 3.2s（前三秒必须完成冲击）")
-    # 2) 每拍 scene 在 storyboard 里存在
-    defined = set(_re.findall(r"(s\w+)\s*\(", sb))
-    for b in beats:
-        if b["scene"] not in defined:
-            errs.append(f"{b['id']} 的 scene '{b['scene']}' 未在 storyboard.js 定义")
-    # 3) 每拍有落点（sfx 或 punch 至少其一）
-    punches = set(p[0] + b["start"] for b in beats for p in [(x, 0) for x in [0]] ) # placeholder
-    for b in beats:
-        has_sfx = bool(b.get("sfx"))
-        punched = any(abs(film.get("punches", [[-9]])[i][0] - b["start"]) < 0.3
-                      for i in range(len(film.get("punches", []))))
-        if not has_sfx and not punched and (b["end"] - b["start"]) > 3:
-            warns.append(f"{b['id']} 无 sfx 也无 punch：这一拍没有'落点'（动在事件上）")
-    # 4) 口播句全覆盖且已 place
-    if cues and cues.get("sentences"):
-        if not cues.get("placed"): errs.append("cues 未 place（voice.py place）——音画会漂移")
-        covered = {si for b in beats for si in b.get("sentences", [])}
-        miss = [i for i in range(len(cues["sentences"])) if i not in covered]
-        if miss: errs.append(f"句子 {miss} 不在任何拍里")
-    # 5) 数字来源（data.js 中数字行应带 来源/来源备注 或 tag）
-    for ln in data.splitlines():
-        if _re.search(r"roll\s*:\s*[\d.]+", ln) and "来源" not in ln and "tag" not in ln \
-                and "核实" not in ln and "经验" not in ln:
-            warns.append(f"data.js 可能缺来源标注: {ln.strip()[:60]}")
-    # 6) ending_fade 合法
-    ef = film.get("ending_fade")
-    if not ef or ef[1] > dur or ef[0] < dur - 6:
-        warns.append(f"ending_fade {ef} 异常（应在 dur-6 ~ dur 之间）")
-    # 7) 拍长节奏
-    for b in beats:
-        L = b["end"] - b["start"]
-        if L > 12: warns.append(f"{b['id']} 拍长 {L:.1f}s > 12s（>12s 无画面事件会被读成 PPT）")
-    for w in errs: print("✗", w)
-    for w in warns: print("⚠", w)
-    if not errs and not warns:
-        print("✓ storyboard lint 全过（钩子/落点/场景/来源/cues/边界）")
-    raise SystemExit(1 if errs else 0)
-
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["sheet", "audio", "edges", "auto", "storyboard"])
-    ap.add_argument("--project", default=".")
-    ap.add_argument("--n", type=int, default=4)
-    ap.add_argument("--thr", type=int, default=32)
-    ap.add_argument("--every", type=int, default=15)
-    ap.add_argument("--keys", default="auto")
-    args = ap.parse_args()
-    if args.cmd == "auto":
-        cmd_auto(args)
-    elif args.cmd == "storyboard":
-        cmd_storyboard(args)
-    elif args.cmd == "edges":
-        import glob as _g, os as _os
-        import numpy as _np
-        from PIL import Image as _Im
-        _os.chdir(args.project)
-        frames = sorted(_g.glob("frames/f*.jpg"))
-        if not frames:
-            raise SystemExit("先 render.py --full")
-        # 拍首转场窗豁免：wipe 是合法全屏覆盖，不算贴边
-        skip = []
-        try:
-            film = json.load(open("film.json"))
-            if film.get("wipe"):
-                beats = sorted(film.get("beats", []), key=lambda b: b["start"])
-                skip = [(b["start"], b["start"] + 0.6) for b in beats[1:]]
-        except Exception:
-            pass
-        fps = 30
-        bad = 0
-        for f in frames[::args.every]:
-            t = (int(f.split("f")[-1].split(".")[0])) / fps
-            if any(a <= t <= b for a, b in skip):
-                continue
-            if t < 1.6:
-                continue
-            # 浅色底主题（白板等）的边框/磁铁/笔托是设计元素，不算贴边
-            try:
-                _theme = json.load(open('film.json')).get('theme','')
-                if _theme in ('whiteboard', 'ink'):
-                    continue
-            except: pass                                   # 钩子炸开（有意全屏冲击）
-            a = _np.asarray(_Im.open(f).convert("L"), _np.float32)
-            h, w = a.shape
-            hits = [nm for nm, band in [("上", a[:26, :]), ("下", a[h-26:, :]), ("左", a[:, :26]), ("右", a[:, w-26:])]
-                    if float((band > args.thr).mean()) > 0.02]
-            if hits:
-                bad += 1
-                if bad <= 6:
-                    print(f"⚠ {f} {'/'.join(hits)}")
-        print(f"✓ 低阈值({args.thr})四边扫描 {len(frames[::args.every])} 帧全清" if bad == 0 else f"✗ {bad} 帧弱元素贴边")
-        raise SystemExit(0 if bad == 0 else 1)
-    (cmd_sheet if args.cmd == "sheet" else cmd_audio)(args)
+if __name__=='__main__': main()

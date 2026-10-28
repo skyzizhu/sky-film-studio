@@ -14,24 +14,17 @@
  * dx/dy = 运动方向像素偏移（正=向右/下），strength = 残影层数（3=轻 5=重）
  */
 function withMotionBlur(ctx, t, cfg, drawFn) {
-  const layers = cfg.strength || 3;
+  const layers = Math.max(1,Math.min(8,Math.round(cfg.strength ?? 3)));
   const dx = cfg.dx || 0, dy = cfg.dy || 0;
   if (layers <= 1 || (dx === 0 && dy === 0)) { drawFn(); return; }
-  
-  ctx.save();
-  // 从尾到头画，最后一层（最清晰）在最上面
-  for (let i = layers; i >= 1; i--) {
-    const q = i / layers;           // 0=远尾影 1=当前帧
-    const alpha = i === 1 ? 1 : (1 - q) * 0.6;  // 尾影更透明
-    const ox = dx * (1 - q) * 1.2;  // 尾影偏移更远
-    const oy = dy * (1 - q) * 1.2;
-    ctx.globalAlpha = alpha;
+  const alpha=ctx.globalAlpha;
+  for (let i=layers-1;i>=0;i--) {
     ctx.save();
-    ctx.translate(-ox, -oy);
-    drawFn();
-    ctx.restore();
+    const q=i/(layers-1);
+    ctx.globalAlpha=alpha*(i===0?1:(1-q*.7)*.25);
+    ctx.translate(-dx*q,-dy*q);
+    drawFn();ctx.restore();
   }
-  ctx.restore();
 }
 
 /*
@@ -43,39 +36,32 @@ function withMotionBlur(ctx, t, cfg, drawFn) {
  *   });
  */
 function withSlamBlur(ctx, u, cfg, drawFn) {
-  const scaleFrom = cfg.scaleFrom || 1.7;
-  if (u >= 1) { drawFn(); return; }
-  
-  const layers = 4;
-  const scaleNow = scaleFrom - (scaleFrom - 1) * MO.outExpo(u);
-  ctx.save();
-  for (let i = layers; i >= 1; i--) {
-    const q = i / layers;
-    const alpha = i === 1 ? 1 : (1 - q) * 0.35;
-    // 模拟模糊：当前帧清晰，前几帧是更大缩放的半透明残影
-    const blurScale = scaleNow + (scaleFrom - scaleNow) * q * 0.6;
-    ctx.globalAlpha = alpha;
+  u=Math.max(0,Math.min(1,u));
+  if (u<=0) return;
+  if (u>=1) { drawFn();return; }
+  const scaleFrom=cfg.scaleFrom??1.7;
+  const scaleNow=scaleFrom-(scaleFrom-1)*MO.outExpo(u);
+  const alpha=ctx.globalAlpha;
+  for (let i=3;i>=0;i--) {
     ctx.save();
-    // 围绕中心缩放
-    const cx = cfg.cx ?? 0, cy = cfg.cy ?? 0;
-    ctx.translate(cx, cy);
-    ctx.scale(blurScale / scaleNow, blurScale / scaleNow);
-    ctx.translate(-cx, -cy);
-    drawFn();
-    ctx.restore();
+    const scale=scaleNow+(scaleFrom-scaleNow)*(i/3)*.6;
+    ctx.globalAlpha=alpha*(i===0?1:.12*(1-u));
+    ctx.translate(cfg.cx??0,cfg.cy??0);ctx.scale(scale,scale);
+    ctx.translate(-(cfg.cx??0),-(cfg.cy??0));drawFn();ctx.restore();
   }
-  ctx.restore();
 }
 
 /*
  * 预渲染模糊层（P2 景深用）：把 canvas 的一个区域做模糊并缓存
  * 不是逐帧 ctx.filter，而是一次性生成模糊版本
  */
-const _blurCache = new Map();
+const _blurCache = new WeakMap();
 
 function preBlur(canvas, key, radius) {
-  const cacheKey = key + "_" + radius;
-  if (_blurCache.has(cacheKey)) return _blurCache.get(cacheKey);
+  const cacheKey = key + "_" + radius + "_" + canvas.width + "x" + canvas.height;
+  let cache=_blurCache.get(canvas);
+  if (!cache) { cache=new Map();_blurCache.set(canvas,cache); }
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
   
   // 用缩小再放大近似高斯模糊
   const small = document.createElement("canvas");
@@ -92,7 +78,8 @@ function preBlur(canvas, key, radius) {
   bctx.imageSmoothingEnabled = true;
   bctx.drawImage(small, 0, 0, blurred.width, blurred.height);
   
-  _blurCache.set(cacheKey, blurred);
+  if (cache.size>=16) cache.delete(cache.keys().next().value);
+  cache.set(cacheKey, blurred);
   return blurred;
 }
 
@@ -180,12 +167,18 @@ function typographyScale(ctx, t, l, cfg) {
   const x = cfg.x ?? W / 2;
   const y = cfg.y ?? H / 2;
   
-  // 首行（70px，较小，引导）
+  const scale=Math.min(W/1920,H/1080);
+  function textSize(text,nominal,spacing) {
+    ctx.save();ctx.font=FONT(700,nominal*scale);
+    const width=ctx.measureText(text).width+Array.from(text).length*spacing*scale;
+    ctx.restore();return nominal*scale*Math.min(1,(W*.84)/Math.max(1,width));
+  }
+  // 首行（按实际画幅缩放）
   if (cfg.firstLine) {
     const a1 = MO.seg(u, 0, 0.4);
-    withSlamBlur(ctx, a1, { scaleFrom: 1.4, cx: x, cy: y - 100 }, () => {
-      txt(ctx, cfg.firstLine, x, y - 100, {
-        size: 70, weight: 600, color: p.creamDim, alpha: a1, ls: 8
+    withSlamBlur(ctx, a1, { scaleFrom: 1.4, cx: x, cy: y - 160*scale }, () => {
+      txt(ctx, cfg.firstLine, x, y - 160*scale, {
+        size: textSize(cfg.firstLine,70,8), weight: 600, color: p.creamDim, alpha: a1, ls: 8*scale
       });
     });
   }
@@ -195,8 +188,8 @@ function typographyScale(ctx, t, l, cfg) {
     const a2 = MO.seg(u, 0.15, 0.55);
     withSlamBlur(ctx, a2, { scaleFrom: 1.7, cx: x, cy: y }, () => {
       txt(ctx, cfg.keyword, x, y, {
-        size: 170, weight: 700, color: cfg.keywordColor || p.accentHi,
-        alpha: a2, ls: 10, glow: 15
+        size: textSize(cfg.keyword,170,10), weight: 700, color: cfg.keywordColor || p.accentHi,
+        alpha: a2, ls: 10*scale, glow: TH.light ? 0 : 15
       });
     });
   }
@@ -204,7 +197,7 @@ function typographyScale(ctx, t, l, cfg) {
   // 胶囊标签（小字，收尾）
   if (cfg.label) {
     capsuleLabel(ctx, t, l, {
-      text: cfg.label, x, y: y + 130, size: 24, at: (cfg.at || 0) + 0.5,
+      text: cfg.label, x, y: y + 130*scale, size: 24*scale, at: (cfg.at || 0) + 0.5,
       color: p.accent
     });
   }
@@ -215,12 +208,12 @@ function typographyScale(ctx, t, l, cfg) {
     if (a3 > 0) {
       ctx.save();
       ctx.strokeStyle = p.accent;
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 8*scale;
       ctx.lineCap = "round";
-      const lineW = 200 * MO.outCubic(a3);
+      const lineW = 200*scale * MO.outCubic(a3);
       ctx.beginPath();
-      ctx.moveTo(x - lineW / 2, y + 70);
-      ctx.lineTo(x - lineW / 2 + lineW, y + 70);
+      ctx.moveTo(x - lineW / 2, y + 70*scale);
+      ctx.lineTo(x - lineW / 2 + lineW, y + 70*scale);
       ctx.stroke();
       ctx.restore();
     }

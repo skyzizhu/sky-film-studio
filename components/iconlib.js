@@ -19,14 +19,14 @@ function _polyLen(pts) {
   return L;
 }
 
-function initIcons() {
+function _sampleIcons(names) {
   if (!window.ICONS) return 0;
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
   svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
   document.body.appendChild(svg);
   let n = 0;
-  for (const name of Object.keys(window.ICONS)) {
+  for (const name of names.filter(n=>window.ICONS[n])) {
     const polys = [];
     for (const d of window.ICONS[name]) {
       const p = document.createElementNS(svgNS, "path");
@@ -51,7 +51,7 @@ function initIcons() {
   svg.remove();
   // 实心双色集（phosphor duotone，按填充设计）
   if (window.ICONS_FILL) {
-    for (const name of Object.keys(window.ICONS_FILL)) {
+    for (const name of names.filter(n=>window.ICONS_FILL[n])) {
       const arr = [];
       for (const q of window.ICONS_FILL[name]) {
         const p2 = document.createElementNS(svgNS, "path");
@@ -76,4 +76,22 @@ function initIcons() {
   }
   svg.remove();
   return n;
+}
+
+// Compile legacy polylines only when an entity actually needs them.
+// Native Path2D icons do not pay for sampling the complete library at boot.
+function initIcons() {
+  const names=new Set([...Object.keys(window.ICONS||{}),...Object.keys(window.ICONS_FILL||{})]);
+  for (const name of names) {
+    let sampled=false;
+    const sample=()=>{
+      if (sampled) return;
+      sampled=true;
+      delete window.ICON_PATHS[name];delete window.ICON_FILL_PATHS[name];
+      _sampleIcons([name]);
+    };
+    Object.defineProperty(window.ICON_PATHS,name,{configurable:true,enumerable:true,get(){sample();return window.ICON_PATHS[name];}});
+    Object.defineProperty(window.ICON_FILL_PATHS,name,{configurable:true,enumerable:true,get(){sample();return window.ICON_FILL_PATHS[name];}});
+  }
+  return names.size;
 }

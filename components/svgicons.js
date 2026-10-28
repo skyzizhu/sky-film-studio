@@ -1,67 +1,37 @@
 // =====================================================================
 // sky-film-studio · components/svgicons.js —— SVG 原生渲染图标（替代折线近似）
-// 把 icons.js / icons-fill.js 里的 SVG 路径构建成完整 SVG → Image 对象 →
-// ctx.drawImage() 绘制。曲线光滑、比例精准、填充质量=设计师原版。
+// 把 icons.js / icons-fill.js 的 SVG 路径同步编译为原生 Path2D →
+// ctx.fill/stroke 绘制：保留贝塞尔曲线与填充，无异步加载竞态。
 // =====================================================================
 "use strict";
 
-window.SVG_ICONS = {};      // name → Image 对象（缓存）
-window.SVG_PENDING = {};    // name → Promise（去重）
+window.SVG_ICONS = {}; // name -> synchronously compiled native vector paths
 
-/* 构建 SVG 字符串（lucide 线稿 或 phosphor 双色） */
-function _buildSVG(name, opts) {
-  const p = PAL();
-  const accent = opts.color || p.accent;
-  const deep = opts.deep || p.accentDeep;
-  const hi = opts.hi || p.accentHi;
-  const size = opts.px || 512;   // 渲染分辨率
-
-  // 优先 phosphor 双色（更有辨识度）
-  if (window.ICONS_FILL && window.ICONS_FILL[name]) {
-    const layers = window.ICONS_FILL[name];
-    let paths = "";
-    for (const q of layers) {
-      const fill = q.base ? deep : accent;
-      const op = q.base ? 0.35 : 1;
-      paths += `<path d="${q.d}" fill="${fill}" opacity="${op}"/>`;
-    }
-    // 勾边提清晰度
-    for (const q of layers) {
-      if (!q.base) paths += `<path d="${q.d}" fill="none" stroke="${hi}" stroke-width="3" opacity="0.3"/>`;
-    }
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="${size}" height="${size}">${paths}</svg>`;
-  }
-
-  // 回退 lucide 线稿
-  if (window.ICONS && window.ICONS[name]) {
-    const ds = window.ICONS[name];
-    let paths = "";
-    for (const d of ds) {
-      paths += `<path d="${d}" fill="none" stroke="${accent}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`;
-    }
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}">${paths}</svg>`;
-  }
-
-  return null;
+/* Native vector paths compile synchronously: no image-load race or colour cache. */
+function getSVGIcon(name, opts = {}) {
+  if (window.SVG_ICONS[name]) return window.SVG_ICONS[name];
+  const fill = window.ICONS_FILL?.[name];
+  const outline = window.ICONS?.[name];
+  if (!fill && !outline) throw new Error(`未知 SVG 图标 ${name}`);
+  return window.SVG_ICONS[name] = fill
+    ? { size:256, fill:true, paths:fill.map(q=>({path:new Path2D(q.d),base:q.base})) }
+    : { size:24, fill:false, paths:outline.map(d=>({path:new Path2D(d)})) };
 }
-
-/* 获取（或创建）SVG 图标的 Image 对象 */
-function getSVGIcon(name, opts) {
-  const key = name + "_" + (opts.color || "") + (opts.deep || "");
-  if (window.SVG_ICONS[key]) return window.SVG_ICONS[key];
-  if (window.SVG_PENDING[key]) return null;   // 还在加载
-
-  const svg = _buildSVG(name, opts || {});
-  if (!svg) return null;
-
-  const img = new Image();
-  window.SVG_PENDING[key] = true;
-  img.onload = () => {
-    window.SVG_ICONS[key] = img;
-    delete window.SVG_PENDING[key];
-  };
-  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
-  return null;    // 第一次调用返回 null，下一帧就有缓存了
+function paintSVGIcon(ctx, icon, cfg, width) {
+  const p=PAL();
+  ctx.save(); ctx.translate(-width/2,-width/2); ctx.scale(width/icon.size,width/icon.size);
+  for (const q of icon.paths) {
+    ctx.save();
+    if (icon.fill) {
+      ctx.fillStyle=q.base?(cfg.deep||p.accentDeep):(cfg.color||p.accent);
+      ctx.globalAlpha*=q.base?.35:1; ctx.fill(q.path);
+    } else {
+      ctx.strokeStyle=cfg.color||p.accent; ctx.lineWidth=cfg.strokeWidth??2;
+      ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke(q.path);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 /* 绘制 SVG 图标（替代 drawObj 的折线渲染）
@@ -77,7 +47,7 @@ function drawSVGIcon(ctx, t, l, cfg) {
   const s = cfg.s || 2;
   const w = 50 * s;       // 图标基准尺寸
   const x = cfg.x, y = cfg.y;
-  const m = cfg.motion || "fadeIn";
+  const m = cfg.enter || cfg.motion || "fadeIn";
 
   ctx.save();
 
@@ -94,8 +64,7 @@ function drawSVGIcon(ctx, t, l, cfg) {
     scale = MO.spring(u * (cfg.dur || 0.8), 2.5, 10);
   } else if (m === "floatIn") {
     alpha = MO.outCubic(u);
-    dy = 40 * (1 - alpha);
-    if (u >= 1) dy = Math.sin(t * 1.5) * 5;    // 持续缓浮
+    dy = 40 * (1 - alpha) + Math.sin(t * 1.5) * 5 * alpha;
     scale = 1;
   } else {
     // drawOn 近似：alpha 渐入 + 剪裁从左到右展开
@@ -103,9 +72,11 @@ function drawSVGIcon(ctx, t, l, cfg) {
     scale = 1;
   }
 
-  ctx.globalAlpha = alpha * (cfg.alpha ?? 1);
+  ctx.globalAlpha *= alpha * (cfg.alpha ?? 1);
   ctx.translate(x, y + dy);
+  if (m === "grow") ctx.translate(0,w/2);
   ctx.scale(scale, scale);
+  if (m === "grow") ctx.translate(0,-w/2);
 
   // drawOn 近似：圆形剪裁从中心扩展
   if (m === "drawOn") {
@@ -122,7 +93,7 @@ function drawSVGIcon(ctx, t, l, cfg) {
     ctx.shadowBlur = cfg.glow;
   }
 
-  ctx.drawImage(img, -w / 2, -w / 2, w, w);
+  paintSVGIcon(ctx,img,cfg,w);
   ctx.restore();
 
   // 落定微弹光环
@@ -142,19 +113,5 @@ function drawSVGIcon(ctx, t, l, cfg) {
   }
 }
 
-// 预热常用图标（initIcons 后调用）
-function preloadSVGIcons() {
-  const common = ["rocket", "shield", "clock", "coins", "users", "network",
-    "trending-up", "database", "lightbulb", "message-circle", "globe",
-    "trophy", "zap", "brain", "landmark", "scroll", "lock", "key",
-    "search", "smartphone", "monitor", "cloud", "code", "terminal",
-    "cpu", "hard-drive", "server", "wifi", "flag", "star", "gem",
-    "flame", "sun", "moon", "mountain", "leaf", "tree-pine",
-    "car", "plane", "train-front", "ship", "building", "house",
-    "factory", "bridge", "graduation-cap", "heart-pulse", "stethoscope",
-    "scale", "gavel", "newspaper", "mic", "camera", "video",
-    "bot", "puzzle", "target", "medal", "award", "crown", "sparkle"];
-  for (const name of common) {
-    getSVGIcon(name, {});
-  }
-}
+// Paths are compiled on first use synchronously; custom colours need no preload.
+function preloadSVGIcons() { return Promise.resolve(); }

@@ -1,5 +1,5 @@
-// sky-film-studio · themes/renderers/all.js (auto-generated)
-"use strict";
+// sky-film-studio · renderer bundle; sources: themes/renderers/*.js
+
 // === ink ===
 // =====================================================================
 // 渲染引擎 · ink（水墨）—— fBm 噪声山脊 + 墨晕扩散 + 宣纸纤维 + 竖排书法
@@ -17,7 +17,7 @@
     const aa = _perm[_perm[X] + Y], ab = _perm[_perm[X] + Y + 1];
     const ba = _perm[_perm[X + 1] + Y], bb = _perm[_perm[X + 1] + Y + 1];
     const x1 = aa + (ba - aa) * u, x2 = ab + (bb - ab) * u;
-    return x1 + (x2 - x1) * v;
+    return (x1 + (x2 - x1) * v) / 127.5 - 1;
   }
   function fbm(x, y, oct) {
     let v = 0, a = 0.5, f = 1;
@@ -60,9 +60,9 @@
     const layers = cfg.layers || 3;
     for (let L = 0; L < layers; L++) {
       const depth = L / layers;                 // 0=近（浓）→ 1=远（淡）
-      const alpha = 0.85 - depth * 0.65;
-      const yOffset = H * (0.30 + depth * 0.18);
-      const amp = 60 - depth * 30;
+      const alpha = 0.16 - depth * 0.10;
+      const yOffset = H * (0.72 + depth * 0.10);
+      const amp = H * (0.035 - depth * 0.015);
       const freq = 0.003 + depth * 0.002;
       const speed = 0.02 + depth * 0.01;
       ctx.beginPath();
@@ -180,7 +180,7 @@
 (() => {
   let _low = null;      // 低分辨率离屏 canvas
   let _lowCtx = null;
-  const LOW_W = 240, LOW_H = 135;
+  let LOW_W = 240, LOW_H = 135;
   const SCALE = 8;       // 240×8=1920, 135×8=1080
 
   // 16 色限制调色板（经典 NES/CGA 风）
@@ -209,7 +209,9 @@
   window.RENDERERS.pixel = {
     // 在低分辨率 canvas 上渲染，然后放大
     begin(ctx, t, W, H) {
-      if (!_low) {
+      const targetH=Math.max(1,Math.round(240*H/W));
+      if (!_low || LOW_H!==targetH) {
+        LOW_H=targetH;
         _low = document.createElement("canvas");
         _low.width = LOW_W; _low.height = LOW_H;
         _lowCtx = _low.getContext("2d");
@@ -292,7 +294,7 @@
   let _faCtx = null, _fbCtx = null, _fcCtx = null;
 
   function ensureBuffers(W, H) {
-    if (!_frameA) {
+    if (!_frameA || _frameA.width !== W || _frameA.height !== H) {
       _frameA = document.createElement("canvas"); _frameA.width = W; _frameA.height = H;
       _frameB = document.createElement("canvas"); _frameB.width = W; _frameB.height = H;
       _frameC = document.createElement("canvas"); _frameC.width = W; _frameC.height = H;
@@ -349,6 +351,8 @@
     // RGB 三通道分离 + 切片位移
     post(ctx, t, W, H) {
       ensureBuffers(W, H);
+      // Reset compositing before copying; previous tint must not multiply the next frame.
+      for (const c of [_faCtx,_fbCtx,_fcCtx]) c.globalCompositeOperation='source-over';
       // 复制当前帧到三个缓冲区
       _faCtx.clearRect(0, 0, W, H); _faCtx.drawImage(ctx.canvas, 0, 0);
       _fbCtx.clearRect(0, 0, W, H); _fbCtx.drawImage(ctx.canvas, 0, 0);
@@ -386,7 +390,7 @@
         const dx = (rnd() - 0.5) * off * 6;
         ctx.save();
         ctx.beginPath(); ctx.rect(0, y, W, h2); ctx.clip();
-        ctx.drawImage(ctx.canvas, dx, y - y + y, W, h2, 0, y, W, h2);
+        ctx.drawImage(ctx.canvas, 0, y, W, Math.min(h2,H-y), dx, y, W, Math.min(h2,H-y));
         ctx.restore();
       }
     },
@@ -716,4 +720,3 @@
     components: { drawIDE, tokenize, SYNTAX }
   };
 })();
-

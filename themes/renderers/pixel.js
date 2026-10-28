@@ -5,7 +5,7 @@
 (() => {
   let _low = null;      // 低分辨率离屏 canvas
   let _lowCtx = null;
-  const LOW_W = 240, LOW_H = 135;
+  let LOW_W = 240, LOW_H = 135;
   const SCALE = 8;       // 240×8=1920, 135×8=1080
 
   // 16 色限制调色板（经典 NES/CGA 风）
@@ -34,7 +34,9 @@
   window.RENDERERS.pixel = {
     // 在低分辨率 canvas 上渲染，然后放大
     begin(ctx, t, W, H) {
-      if (!_low) {
+      const targetH=Math.max(1,Math.round(240*H/W));
+      if (!_low || LOW_H!==targetH) {
+        LOW_H=targetH;
         _low = document.createElement("canvas");
         _low.width = LOW_W; _low.height = LOW_H;
         _lowCtx = _low.getContext("2d");

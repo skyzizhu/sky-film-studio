@@ -2,7 +2,7 @@
 
 **一句话 / 一份文稿 / 一段录音 → 30 秒到 5 分钟的电影感知识解说短片。**
 
-规格驱动、代码生成的视频 skill：事实先核实、数字可溯源、口播与字幕与画面三方强同步、BGM 全合成无版权、画面逐帧确定性渲染，交付 H.264+AAC 的 mp4。它跑在 AI Agent（ZCode/Claude Code/Codex 等）里，你用自然语言指挥，Agent 按本 skill 的流程当导演、事实核查员、作曲和动画师。
+规格驱动、代码生成的视频 skill：事实先核实、数字可溯源、句级 cues 统筹口播、字幕和分镜，BGM 默认本地合成、画面逐帧确定性渲染，交付 H.264+AAC 的 mp4。它跑在 AI Agent（ZCode/Claude Code/Codex 等）里，你用自然语言指挥，Agent 按本 skill 的流程当导演、事实核查员、作曲和动画师。
 
 ```
 你的话 ──► 事实核查(WebSearch) ──► data.js(数字唯一来源)
@@ -18,16 +18,16 @@
 | 能力 | 说明 |
 |---|---|
 | 四种成片模式 | 一句话自动调研写稿 / 给口播文稿直接成片 / 无口播纯画面+字幕+BGM / 用你的配音录音驱动画面 |
-| 事实硬规则 | 出现的每个数字先 WebSearch 逐条核实并写明来源；核实不了的不进画面 |
-| 三方强同步 | 口播音频、字幕、画面共用同一份句级 cues 和小节网格，漂移为 0（句开口=拍起点+0.35s，画面入场略先于声音） |
+| 事实硬规则 | 事实主张关联 claims.json 与直接来源；动画参数、序号和已标示示例另行处理 |
+| 三方强同步 | 音频、字幕和 duck 共用句级 cues；逐句 TTS 可落位，用户录音锁源时间；词级事件需额外对齐 |
 | 主题系统 | **11 种视听风格**：6 种配色主题 + 5 种渲染引擎主题（水墨/像素/故障/白板/录屏），主题=渲染引擎+配色+音色 |
-| 实体管线 | 识别核心实体（三问筛选）→ 绘制（手绘件+图标库+现场组合）→ 按性质配诞生动画（8 种） |
+| 实体管线 | 按表达目标选参考素材、原生SVG或部件实体；入场、动作和退出分开，跨镜头保持身份 |
 | 文字动效 | 主词砸入/槽里升起/打字机/逐字浮出/荧光笔·下划线·圈注 |
 | 冲击特效 | 冲击波/粒子飞射/速度线/放射光 + 四式拍首转场（色带/墨晕/横推/扫描线） |
-| BGM/SFX | Python 纯合成（无版权风险），能量曲线跟分镜，口播段自动 duck，峰值 -1dB |
+| BGM/SFX | Python 本地合成（记录代码与素材来源），能量曲线跟分镜，口播段自动 duck，峰值 -1dB |
 | 任意比例 | 默认 16:9；说"竖屏"→9:16；可点名 1:1/4:3/4:5/2.35:1/任意 W:H |
-| 质检闭环 | `check.py auto` 一键门禁（全片渲染+静帧拼图+边缘扫描+音频校验+教学逻辑 lint），全绿才交付 |
-| 完全离线 | 字体（35MB）、图标（245 个）、渲染引擎全部内置 `assets/`+`components/`，clone 后零网络依赖 |
+| 质检闭环 | 严格预检、关键帧/确定性、音频与过期重建；编码后 delivery；画面和试听仍须复查 |
+| 完全离线 | 字体（35MB）、图标（245 个）、渲染引擎全部内置 `assets/`+`components/`，依赖安装完成后可离线渲染 |
 
 **时长边界**：30 秒 ~ 5 分钟（默认 60s，超界先和你商量收敛）。
 
@@ -42,9 +42,9 @@
 | 商业 / 财经 | 深蓝黑+**铂银** | 网格+上行虚线影 / 横推 | 大调沉稳 100BPM |
 | 通用兜底 | 暗金电影感 | 金尘 / 色带 | 小调 100BPM |
 | **水墨 ink** | **宣纸纤维+fBm山脊+墨晕+红印** | 噪声山脊流动+墨晕扩散诞生 | 五声古筝 72BPM |
-| **像素 pixel** | **240×135→8×放大+16色量化** | 步进动画（8fps）+像素化后处理 | chiptune 130BPM |
+| **像素 pixel** | **低分辨率等比缩放+16色量化** | 可选步进时间+像素化后处理 | chiptune 130BPM |
 | **赛博 glitch** | **RGB三通道分离+切片位移+CRT扫描线** | 故障闪现（RGB分离→归位） | 失真锯齿 128BPM |
-| **白板 whiteboard** | **白板底+磁铁+笔托**（唯一浅色主题） | 毛边手绘（双遍随机偏移） | 尤克里里 92BPM |
+| **白板 whiteboard** | **白板底+磁铁+笔托**（浅色主题） | 毛边手绘（双遍随机偏移） | 合成尼龙弦 92BPM |
 | **代码录屏 screencast** | **假IDE（文件树+语法高亮+逐字打字+终端）** | 字符级打字+光标闪烁 | lo-fi 90BPM |
 
 ## 三、安装
@@ -54,12 +54,12 @@
 git clone https://github.com/skyzizhu/sky-film-studio.git ~/.agents/skills/sky-film-studio
 
 # 2）依赖（缺哪个装哪个）
-python3 -m pip install numpy requests        # requests 仅口播走火山时需要
+python3 -m pip install -r ~/.agents/skills/sky-film-studio/requirements.txt
 python3 -m playwright install chromium       # 渲染引擎
 brew install ffmpeg                          # 合成（macOS 示例）
 ```
 
-**可选：火山口播配置**（不配也能用——回退 macOS 系统声音，或做无口播片）
+**可选：火山口播配置**（不配可显式选 macOS 系统声音；无口播片由用户选择）
 
 ```bash
 # 凭证（二选一）：环境变量或 ~/.volc.env
@@ -89,7 +89,7 @@ EOF
 > - "帮我把这篇稿子做成片子，里面的数字你先核实一遍再上画面"
 > - "按这份文案做视频，历史题材，要有那种纸墨卷轴的味道"
 
-Agent 流程：断句 → 逐句火山 TTS → 句级时长量化到小节网格 → 提取关键词/实物逐拍分镜 → 渲染 → 交付 mp4。
+Agent 流程：断句 → 逐句火山 TTS → 按实际音频时长分镜与落位 → 提取关键词/实物逐拍分镜 → 渲染 → 交付 mp4。
 
 ### 场景 B：没有文案，只有主题或一句话——自动调研写稿
 > - "用 sky-film-studio 做一支 60 秒的片子：中国高铁为什么快"
@@ -122,8 +122,8 @@ Agent 流程：能量切句探测 → 生成句级 cues（给文稿则自动对�
 
 - **实时预览**：`render.py --project <项目> --preview` → 浏览器拖时间轴实时调 draw(t)（金线=拍、红条=口播、点击取坐标、空格播放、←→逐帧），指哪改哪
 - **参数化模板**：`new.py <项目> --template daily-brief|how-to|fact-card`，改 data.js 变量即出同款新片（日更快讯/N 步流程/数据卡片）
-- **一键门禁**：`check.py auto --project <项目>`——全片渲染→静帧拼图→边缘扫描→音频校验→教学逻辑 lint（钩子≤3s/落点/数字来源/cues 落位），全绿才交付
-- **渲染引擎主题**：`new.py <项目> --theme ink|pixel|glitch|whiteboard|screencast`——主题=渲染引擎，不只是配色：水墨用 fBm 噪声画山、像素做 16 色量化、故障做 RGB 分裂、白板是唯一浅色底、录屏画假 IDE
+- **技术检查**：`check.py auto --project <项目>`——严格预检→关键帧/确定性→拼图→音频→过期时重渲；边缘亮度仅提示；编码后再 delivery，并人工检查画面/试听
+- **渲染引擎主题**：`new.py <项目> --theme ink|pixel|glitch|whiteboard|screencast`——主题=渲染引擎，不只是配色：水墨用 fBm 噪声画山、像素做 16 色量化、故障做 RGB 分裂、白板使用浅色底、录屏画假 IDE
 
 ## 六、交付物
 
@@ -136,30 +136,29 @@ S=~/.agents/skills/sky-film-studio
 python3 $S/engine/new.py <项目> --name 片名 --theme tech --ratio 9:16   # 建项目（vendor 自带）
 python3 $S/engine/voice.py say    --project <项目>                       # 逐句TTS → cues.json
 python3 $S/engine/voice.py import --project <项目> --audio 录音.wav --text 文稿.txt
-python3 $S/engine/voice.py plan   --project <项目>                       # 分镜草案+口播贴网格
-python3 $S/engine/voice.py place  --project <项目>                       # 手改beats后重贴（防音画漂移）
-python3 $S/engine/render.py --project <项目> --keys "1.5,6,..."         # 静帧自查（≥2轮）
-python3 $S/engine/render.py --project <项目> --full                     # 全片导帧
-python3 $S/engine/audio.py  build --project <项目>                      # BGM/SFX/混音
-python3 $S/engine/check.py  auto --project <项目>                        # 一键门禁（全片渲染+拼图+边缘+音频+lint）
-python3 $S/engine/check.py  storyboard --project <项目>                   # 教学逻辑 lint
-python3 $S/engine/render.py --project <项目> --preview                   # 实时预览工作台
-ffmpeg -y -framerate 30 -i <项目>/frames/f%05d.jpg -i <项目>/audio/mix.wav \
-  -c:v libx264 -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \
-  -movflags +faststart <项目>/out/成片.mp4
+python3 $S/engine/voice.py plan --project <项目>                         # 只生成草案
+python3 $S/engine/voice.py plan --project <项目> --apply                 # 审阅后应用；录音模式不place
+python3 $S/engine/check.py preflight --project <项目>
+python3 $S/engine/render.py --project <项目> --keys --strict-fonts --determinism
+python3 $S/engine/render.py --project <项目> --clip 10,13 --output <项目>/checks/motion.mp4
+python3 $S/engine/audio.py build --project <项目>
+python3 $S/engine/check.py auto --project <项目>
+python3 $S/engine/encode.py --project <项目> --output <项目>/out/成片.mp4
+python3 $S/engine/check.py delivery --project <项目> --video <项目>/out/成片.mp4
+python3 $S/engine/render.py --project <项目> --preview
 ```
 
-**铁律**：cues 任何变更（place/改稿）后，顺序是 `audio.py build → render.py --full → ffmpeg`，一步不能省（字幕烧在帧里）。
+**铁律**：cues 任何变更（place/改稿）后，顺序是 `audio.py build → check.py auto → encode.py → delivery`，自动发现受影响产物（字幕烧在帧里）。
 
 ## 八、工作原理（一分钟版）
 
 - **确定性渲染**：画面=纯函数 `draw(t)`，种子随机、无 Date/rAF，同一 t 渲两次逐像素一致；Playwright 批量导帧（约 40ms/帧）。
-- **小节网格是唯一主时钟**：口播、字幕、duck、分镜、BGM 全部对齐同一网格（音画同步零漂移的根源设计）。
+- **时间轴**：以实际 cues 为共同依据；用户录音保留源时间码，小节网格辅助剪辑，不能替代字词对齐。
 - **数字唯一来源**：`data.js` 常量表+来源，动画只从它读数。
 - **主题三件套**：palette + 氛围层 + 转场，scaffold 自动装配。
-- **图标桥**：lucide SVG 路径 → 浏览器 getPointAtLength 采样 → 弧长逐笔描出。
+- **图标桥**：原始 SVG 同步编译 Path2D 保留曲线；旧逐笔接口按需惰性采样，无图像异步加载竞态。
 - **渲染引擎**（v7）：每个主题可拥有独立渲染引擎（bg/begin/post/overlay 四阶段），改变"画画方式"本身——水墨用 fBm 噪声、像素做低分辨率量化、故障做 RGB 通道分离、白板用毛边手绘、录屏画假 IDE。
-- **同步覆盖所有渲染引擎**：字幕在 renderer.post 之后渲染（像素化/RGB 分裂不影响字幕可读性）；口播 TTS 在 audio.py 层与渲染无关，11 种主题全部走同一套小节网格主时钟同步。
+- **同步覆盖所有渲染引擎**：字幕在 renderer.post 之后渲染（像素化/RGB 分裂不影响字幕可读性）；口播 TTS 在 audio.py 层与渲染无关，所有主题共用同一份句级 cues。
 
 ## 九、目录结构
 
@@ -177,4 +176,4 @@ references/            分镜映射/语音协议/主题规格/管线命令/经�
 examples/wxminipro/    已交付 60s 参考片源码（微信小程序从0到上架）
 ```
 
-第三方：线稿图标 [lucide](https://lucide.dev)（ISC）；实心图标 [phosphor](https://phosphoricons.com)（MIT）；字体 Noto Serif SC + LXGW WenKai（OFL）；渲染引擎/组件/管线全部自研。
+第三方：线稿图标 [lucide](https://lucide.dev)（ISC）；实心图标 [phosphor](https://phosphoricons.com)（MIT）；字体 Noto Serif SC、LXGW WenKai 及专属展示字体见 assets/fonts。制作方法亦参考 [code-video-showcase](https://github.com/Moessif/code-video-showcase)，适配范围见 [showcase.md](references/showcase.md)。

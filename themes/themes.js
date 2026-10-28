@@ -73,3 +73,15 @@ window.THEMES = {
     decor: { grid: true, risingLines: true }
   }
 };
+
+for (const [key,base,palette,font,light] of [
+ ['ink','history',{bg0:'#f2ead8',bg1:'#faf5e9',ink:'#e3d6bc',cream:'#29251f',creamDim:'#625846',accent:'#ad382e',accentHi:'#b84336',accentDeep:'#722820'},'Ma Shan Zheng',true],
+ ['whiteboard','default',{bg0:'#f8f6f0',bg1:'#ffffff',ink:'#ece9e0',cream:'#222222',creamDim:'#656565',accent:'#2870c8',accentHi:'#2870c8',accentDeep:'#1a4b88'},'LXGW WenKai',true],
+ ['pixel','tech',{accent:'#59eb88',accentHi:'#c7ff90'},'Noto Serif SC',false],
+ ['glitch','tech',{accent:'#ff2bd6',accentHi:'#7effff'},'Noto Serif SC',false],
+ ['screencast','code',{bg0:'#1e2127',bg1:'#1e2127',accent:'#61afef'},'Noto Serif SC',false]
+]) {
+ const src=THEMES[base];
+ THEMES[key]={...src,key,light,palette:{...src.palette,...palette},fonts:{...src.fonts,serif:font},
+   grain:light?0:src.grain,lightBand:light?0:src.lightBand,vignette:light?0:src.vignette};
+}

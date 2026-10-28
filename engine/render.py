@@ -4,7 +4,7 @@
   --project <dir> --full               全片帧   → <dir>/frames/
 内置：127.0.0.1 HTTP 服务（绕 file:// 字体 CORS）、__ready 字体门控、
 draw() 全时间轴冒烟（导帧前抓 JS 异常）。"""
-import argparse, base64, glob, http.server, os, socketserver, threading, time, math, pathlib
+import argparse, json, subprocess, base64, glob, http.server, os, socketserver, threading, time, math, pathlib
 from project import mark_build, timeline_errors
 
 
@@ -88,6 +88,8 @@ def main():
     ap.add_argument("--strict-fonts", action="store_true")
     ap.add_argument("--determinism", action="store_true")
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--clip", help="导出无声动作样片：绝对秒 START,END；不改全片构建记录")
+    ap.add_argument("--output", help="--clip 输出 MP4 路径")
     ap.add_argument("--quality", type=float, default=0.92)
     ap.add_argument("--preview", action="store_true", help="预览工作台：浏览器实时拖时间轴调 draw(t)")
     ap.add_argument("--port", type=int, default=8765)
@@ -123,6 +125,8 @@ def main():
         httpd.serve_forever()
         raise SystemExit(0)
 
+    if args.clip and (args.full or not args.output):
+        ap.error('--clip 需要 --output，且不能与 --full 同用')
     project_path = pathlib.Path(args.project).resolve()
     pw, browser, page, httpd, dur = launch(project_path,args.strict_fonts,args.determinism)
     try:
@@ -140,6 +144,32 @@ def main():
                     % max(args.quality, 0.93), min(tt, dur - 0.01))
                 save_dataurl(u, f"checks/key_{tt:07.3f}s.jpg")
                 print(f"key {tt}s  {time.time()-t0:.2f}s")
+        if args.clip:
+            try: start,end=map(float,args.clip.split(','))
+            except ValueError: ap.error('--clip 格式 START,END')
+            if not (math.isfinite(start) and math.isfinite(end) and 0<=start<end<=dur):
+                ap.error('--clip 必须在全片时间范围内')
+            fps=page.evaluate('FILM_META.fps || 30')
+            count=math.ceil((end-start)*fps)
+            output=pathlib.Path(args.output).resolve();output.parent.mkdir(parents=True,exist_ok=True)
+            command=['ffmpeg','-y','-v','error','-f','image2pipe','-framerate',str(fps),
+                     '-i','pipe:0','-an','-c:v','libx264','-crf','17','-pix_fmt','yuv420p',
+                     '-movflags','+faststart',str(output)]
+            with subprocess.Popen(command,stdin=subprocess.PIPE,stderr=subprocess.PIPE) as encoder:
+                try:
+                    for i in range(count):
+                        url=page.evaluate("t=>{draw(t);return document.getElementById('c').toDataURL('image/jpeg',.95)}",start+i/fps)
+                        encoder.stdin.write(base64.b64decode(url.split(',',1)[1]))
+                    encoder.stdin.close()
+                    error=encoder.stderr.read().decode();code=encoder.wait()
+                    if code: raise RuntimeError(error)
+                except BaseException:
+                    encoder.kill();encoder.wait();raise
+            probe=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0',
+              '-count_frames','-show_entries','stream=nb_read_frames','-of','json',str(output)],text=True))
+            actual=int(probe['streams'][0]['nb_read_frames'])
+            if actual!=count: raise SystemExit(f'片段帧数不符：{actual}/{count}')
+            print(f'✓ 无声动作样片 {output} / {actual}帧 @ {fps}fps')
         if args.full:
             os.makedirs("frames", exist_ok=True)
             for f in glob.glob("frames/*.jpg"):

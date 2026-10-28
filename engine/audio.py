@@ -159,6 +159,10 @@ PROG = {
                    ["D", [57, 62, 66, 69], 50], ["G", [55, 59, 62, 67], 43]],
 }
 
+
+from project import timeline_errors, mark_build
+
+
 # ==========================================
 # 主题专属乐器（每个渲染引擎主题配不同振荡器/滤波/包络）
 # ==========================================
@@ -223,16 +227,26 @@ def _fm_piano(f, dur):
 # 主题 → 乐器映射
 THEME_INSTRUMENTS = {
     "ink":         {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "acoustic"},
-    "pixel":       {"lead": _chiptune_square, "perc": _chiptune_noise, "bass": _chiptune_square, "type": "chiptune"},
-    "glitch":      {"lead": _saw_distort, "perc": v_kick, "bass": _saw_distort, "type": "electronic"},
+    "pixel":       {"lead": _chiptune_square, "perc": lambda f,d: _chiptune_noise(d), "bass": _chiptune_square, "type": "chiptune"},
+    "glitch":      {"lead": _saw_distort, "perc": lambda f,d: v_kick(), "bass": _saw_distort, "type": "electronic"},
     "whiteboard":  {"lead": _nylon_guitar, "perc": lambda f, d=0.1: _chiptune_noise(d), "bass": _nylon_guitar, "type": "acoustic"},
     "screencast":  {"lead": _fm_piano, "perc": lambda f, d=0.05: _chiptune_noise(d), "bass": _fm_piano, "type": "lofi"},
 }
 
 
 def build(project):
+    global rng
+    rng = np.random.default_rng(20260901)
     proj = pathlib.Path(project).resolve()
     film = json.loads((proj / "film.json").read_text(encoding="utf-8"))
+    cues_file = film.get("voice", {}).get("cues")
+    if cues_file and not (proj/cues_file).is_file():
+        raise SystemExit(f"缺 cues: {cues_file}")
+    initial_cues = json.loads((proj/cues_file).read_text()) if cues_file else None
+    errors = timeline_errors(film, initial_cues)
+    if errors: raise SystemExit("; ".join(errors))
+    if initial_cues and film.get("ending_fade",[film["duration"]])[0] < max(s["end"] for s in initial_cues["sentences"]):
+        raise SystemExit("ending_fade 会截断口播；请延长片尾")
     dur = film["duration"]
     N = int(dur * SR) + SR
     bpm = film.get("bpm", 100)
@@ -241,6 +255,10 @@ def build(project):
     music = film.get("music", {})
     prog = PROG[music.get("mode", "minor")]
     arp_dens = music.get("arpDensity", 1.0)
+    instruments = THEME_INSTRUMENTS.get(film.get('music',{}).get('instrumentTheme',film.get('theme')), {})
+    lead = instruments.get('lead', lambda f,d: v_pluck(f))
+    bass = instruments.get('bass', v_bass)
+    percussion = instruments.get('perc', lambda f,d: v_kick())
     beats = sorted(film.get("beats", []), key=lambda b: b["start"])
     ending = film.get("ending_fade", [dur - 3.2, dur - 0.35])
 
@@ -264,10 +282,10 @@ def build(project):
         if en > 0.15:
             bb = [0, 2] if en < 0.6 else ([0, 1.5, 2, 3.5] if en > 0.8 else [0, 1, 2, 3])
             for k, bd in enumerate(bb):
-                place(bgm, v_bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72))
+                place(bgm, bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72))
         if en > 0.25:
             for bd in ([0, 2] if en < 0.6 else [0, 1, 2, 3]):
-                place(bgm, v_kick(), t0 + bd * beat_t, 0.45 + en * 0.3)
+                place(bgm, percussion(60, .5), t0 + bd * beat_t, 0.45 + en * 0.3)
         if en > 0.45:
             for bd in (1, 3):
                 place(bgm, v_snare(), t0 + bd * beat_t, 0.28 + en * 0.25)
@@ -280,7 +298,7 @@ def build(project):
             dens = max(4, int(8 * arp_dens))
             for k in range(dens):
                 note = notes[pat[k % len(pat)] % len(notes)] + (12 if pat[k % len(pat)] >= 2 else 0)
-                place(bgm, v_pluck(midi(note)), t0 + k * bar_t / dens,
+                place(bgm, lead(midi(note), .55), t0 + k * bar_t / dens,
                       (0.1 + en * 0.08) * (1 if k % 4 == 0 else 0.7))
         if bi > 0 and (bi % 8 == 0 or en > 0.85):
             place(bgm, v_shimmer(0.3 + en * 0.2), t0)
@@ -298,7 +316,8 @@ def build(project):
 
         def load_wav(p):
             tmp = subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-ac", "1", "-ar",
-                                  str(SR), "-f", "s16le", "-"], capture_output=True).stdout
+                                  str(SR), "-f", "s16le", "-"], capture_output=True, check=True).stdout
+            if not tmp: raise ValueError(f"空音频: {p}")
             return np.frombuffer(tmp, dtype=np.int16).astype(np.float32) / 32768
 
         if cues.get("audio"):
@@ -309,21 +328,25 @@ def build(project):
             for s in cues["sentences"]:
                 f = proj / s["file"]
                 if not f.is_file():
-                    continue
+                    raise SystemExit(f"缺语音文件 {f}")
                 place(voice, load_wav(f) * 0.95, s["start"], 1.0)
                 speech.append((s["start"], s["end"]))
         vr = np.sqrt((np.clip(voice, -1, 1) ** 2).mean())
         if vr > 1e-5:
             voice *= min(2.5, max(0.5, 0.16 / vr))
 
-    duck_db = film.get("voice", {}).get("duck_db", -8)
+    duck_db = film.get("voice", {}).get("duck_db", -14)
     if speech:
         duck_g = 10 ** (duck_db / 20)
         env = np.ones(N)
         for a, b in speech:
             i0, i1 = max(0, int((a - 0.15) * SR)), min(N, int((b + 0.15) * SR))
             env[i0:i1] = np.minimum(env[i0:i1], duck_g)
-        env = np.convolve(env, np.ones(int(0.15 * SR)) / int(0.15 * SR), mode="same")
+        # O(N) moving average, rather than O(N * 6615) direct convolution.
+        window = int(.15*SR)
+        padded = np.pad(env,(window//2,window-1-window//2))
+        cumulative = np.concatenate(([0.],np.cumsum(padded)))
+        env = (cumulative[window:]-cumulative[:-window])/window
         bgm *= env
         sfx *= (1 + env) / 2
 
@@ -339,9 +362,10 @@ def build(project):
             x[:, i1:] = 0
         return x
 
-    mix = master(bgm * 0.95 + sfx + voice)
+    mix = master(bgm * 0.95 + sfx) + voice[:, :int(dur*SR)]
     mix = np.tanh(mix * 1.15) / np.tanh(1.15)
-    mix = mix / np.max(np.abs(mix)) * (10 ** (-1.0 / 20))
+    peak = np.max(np.abs(mix))
+    if peak > 0: mix = mix / peak * (10 ** (-1.0 / 20))
 
     def write_wav(path, data):
         import wave
@@ -352,8 +376,9 @@ def build(project):
     (proj / "audio").mkdir(exist_ok=True)
     write_wav(proj / "audio" / "bgm.wav", master(bgm * 0.95))
     write_wav(proj / "audio" / "sfx.wav", master(sfx))
-    write_wav(proj / "audio" / "voice.wav", master(voice))
+    write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
+    mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")
 
