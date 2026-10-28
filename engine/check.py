@@ -30,6 +30,10 @@ def probe(path):
 
 def preflight(project, strict=False):
     project, film, cues = load(project)
+    from direction import resolve
+    try:film=resolve(film)
+    except (ValueError,TypeError) as error:
+        print('✗',error);return False
     errors, warnings = timeline_errors(film,cues), []
     try: policy(film)
     except ValueError as error:errors.append(str(error))
@@ -54,7 +58,7 @@ def preflight(project, strict=False):
     if film.get('voice',{}).get('cues') and cues is None:
         errors.append('配置了 voice.cues 但文件不存在')
     for beat in film.get('beats',[]):
-        try:sound_events(beat)
+        try:sound_events(beat,film)
         except (KeyError,ValueError,TypeError) as error:errors.append(str(error))
     for name in ('index.html','storyboard.js','data.js'):
         if not (project/name).is_file(): errors.append(f'缺 {name}')

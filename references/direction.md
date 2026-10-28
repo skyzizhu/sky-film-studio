@@ -1,0 +1,84 @@
+# 内容 × 表现风格 × 声音
+
+本轮深入实现 `blueprint / museum / whiteboard`，其它十个主题继续使用原接口。内容类型负责叙事与证据，风格负责视觉语法，声音档案负责动作发声；palette仍由theme选择。配置的默认建议不能证明镜头适合内容，最终仍需看动作、听声音并核对来源。
+
+## 选择与创建
+
+```sh
+python3 engine/new.py /absolute/new-film --content history --style blueprint --sound tactile
+# 历史的来源与时间线 + 工程结构表达 + 轻触音效；可单独传 --theme 改色板。
+```
+
+`--theme blueprint|museum|whiteboard` 的新项目也会建立相应direction；已有影片没有direction时保持原行为。完整档案在 `themes/direction-profiles.json`，新片复制到 `engine/direction-profiles.json`，供本片Python引擎读取；它参与构建指纹。该文件是内容结构、动作/特效建议、配乐及语义音效默认值的单一来源。
+
+| 内容类型 | 优先解释 | 复查要点 |
+|---|---|---|
+| concept | 关系与条件变化 | 图形能否说明关系，类比边界是否清楚 |
+| history | 来源、环境、过程及影响 | 时间与史料、原物与工艺示意是否区分 |
+| science | 现象、机制、条件与边界 | 因果可见，简化假设不被隐去 |
+| news | 已知事实、证据与不确定性 | 来源日期，事实与推测是否分开 |
+| finance | 数据口径、比较、解释与风险 | 基数、统计期，避免伪因果 |
+| tutorial | 初态、操作、反馈与检验 | 操作确实改变状态，错误可恢复 |
+| code | 输入、执行、状态与输出 | 路径可追踪，伪代码有标识 |
+
+## 三套风格的针对性设计
+
+| 维度 | 工程蓝图 | 博物陈列 | 白板推导 |
+|---|---|---|---|
+| 适合任务 | 拆解、传动、剖面、约束 | 实体辨认、材料、工艺细节 | 概念、步骤、比较、纠错 |
+| 实体 | 轮廓与部件关系优先 | 形态依据与材质差异优先 | 简化造型，颜色承担分组 |
+| 动作 | 沿约束轴运行，先因后果 | 整体后局部，动作中保持身份 | 按讲解顺序建立，保留前提 |
+| 镜头 | 全结构到局部 | 稳定陈列与低速检视 | 保持推导的空间关系 |
+| 配乐 | 稀疏FM、小调、低打击密度 | 柔和合成键音、五声、默认无鼓 | 轻尼龙弦、大调、默认无鼓 |
+| 动作声 | 可选伺服、金属落位、路径气声 | 轻触与纸面；揭示默认静默 | 与绘线同窗的笔触、擦除声 |
+| 特效 | 路径十字、角框、剖面导线 | 小标注、接触阴影、局部检视 | 笔尖、下划线、按需擦改 |
+
+博物陈列不必绑定古筝，历史内容也可以用工程蓝图。三套档案都不自动在每个转场发声。`mechanical/tactile/marker/none`可以独立组合；角色声是合成示意，不是历史录音或实物采样。物体材质优先于风格：画的是陶土落位时可继续显式用clay，不应为了工程风换成金属撞击。
+
+## 镜头意图与配乐
+
+```json
+{"direction":{"content":"history","style":"blueprint","sound":"tactile"},
+ "beats":[{"id":"detail","intent":"inspect"}]}
+```
+
+这里只示意新增字段；正常beat仍须包含scene/start/end等。`intent`可选 `inspect/explain/resolve`。音层优先级：风格默认 → `music.layers` → `music.sections[intent]` → `beat.music.layers`；后者覆盖前者，嵌套默认深合并。分段配乐在小节边界采样，不是逐词切换。`bpm/music.mode/instrumentTheme`显式值保留；已有片应用新档案时不要只看style名字，就声称实际配器已变。
+
+```sh
+python3 engine/direction.py --project /absolute/existing --content history --style museum
+# 仅写 checks/direction-plan.json，检查现有BPM/theme/music等覆盖项。
+python3 engine/direction.py --project /absolute/existing --content history --style museum --apply
+# 填入缺失默认；不替换已有色板、renderer、音乐，也不改事件/稿件/场景。
+```
+
+若确实要更换旧片风格，先独立复制项目，更新theme/renderer/配乐覆盖项，再按档案改写场景并重建；`--apply`不能自动把现有绘图代码变成另一种语法。
+
+## 动作与音效共用事件
+
+```json
+{"events":{"annotate":[1.2,2.8],"land":[3.1,3.3]},
+ "sfx_events":[
+  {"event":"annotate","role":"draw","duration":"step"},
+  {"event":"land","role":"contact","sound_profile":"tactile"}
+ ]}
+```
+
+角色支持 `move/contact/reveal/draw/erase/transition`。显式kind优先；逐事件 `sound_profile` 优先于direction.sound；档案中为null的角色保持静默。`none`关闭默认角色声，显式kind仍按作者意图播放。不会因为选了主题就自动生成事件。动作时长超过单个音效支持的5秒时按实际动作分段，不硬截。
+
+```js
+const points=[{x:100,y:220},{x:320,y:220},{x:320,y:400}];
+const r=StyleMotion.trace(ctx,l,beat.events.annotate,points,
+  {style:FILM_META.direction.style,color:TH.palette.accent,seed:17});
+// r.tip与已绘制线段来自同一路径；笔尖不是另算一条近似轨迹。
+StyleMotion.focus(ctx,l,beat.events.inspect,
+  {x:210,y:300,width:240,height:150},
+  {style:FILM_META.direction.style,color:TH.palette.accent});
+```
+
+trace按路径弧长推进，蓝图用十字、陈列用小端点、白板用笔尖及固定种子轻微偏移；结束后保留完整线条。focus在事件窗内显示角框、陈列标注或下划线；没有全帧后处理。都在内容坐标中绘制并恢复context状态。实际擦除须由场景改变可见内容，只有声音不会自动擦除画面。
+
+## 对照与验收
+
+每套风格先做适合其任务的镜头，再用相同内容作对照。检查声音是否有可见来源、静默是否合适、材质是否误导、因果是否可见、字幕是否被盖住；不要只评价“很像某种风格”。`checks/arrangement.json`记录实际合成音色、分段音层和音效时间/类型/时长，配合分镜问题与视觉证据复核。自动检查证明配置与技术行为，不能代替内容契合度和真人试听。
+
+本轮测试：`test_direction.py`验证组合/覆盖/旧片兼容/同源时间及音色；`direction_runtime.py`验证实际浏览器轨迹、端点、三风格差异、状态恢复、时间乱序，以及实际音频输出与重复一致性。

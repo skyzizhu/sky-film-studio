@@ -155,6 +155,8 @@ def build_fingerprint(project, kind):
     # Original-skill invocations also account for the helpers used to build.
     for path in sorted(pathlib.Path(__file__).parent.glob('*.py')):
         digest.update(path.name.encode()); digest.update(file_hash(path).encode())
+    for path in (pathlib.Path(__file__).parent/"direction-profiles.json", pathlib.Path(__file__).parent.parent/"themes/direction-profiles.json"):
+        if path.is_file():digest.update(file_hash(path).encode())
     return digest.hexdigest()
 
 
@@ -178,13 +180,16 @@ def build_current(project, kind):
         return False
 
 
-def sound_events(beat):
+def sound_events(beat, film=None):
     """Resolve optional sound cues from the same semantic windows as animation."""
     result=list(beat.get('sfx',[]))
-    for spec in beat.get('sfx_events',[]):
-        window=beat.get('events',{}).get(spec.get('event'))
+    from direction import sound_spec
+    for raw_spec in beat.get('sfx_events',[]):
+        window=beat.get('events',{}).get(raw_spec.get('event'))
         if not (isinstance(window,list) and len(window)==2 and all(number(x)for x in window) and window[0]<window[1]):
-            raise ValueError(f"Missing valid sound event: {spec.get('event')}")
+            raise ValueError(f"Missing valid sound event: {raw_spec.get('event')}")
+        spec=sound_spec(film or {},raw_spec)
+        if spec is None:continue
         count=spec.get('count',1);phase=spec.get('phase',0);gain=spec.get('gain',.2)
         if not isinstance(count,int) or isinstance(count,bool) or not 1<=count<=64:
             raise ValueError('Sound event count must be 1–64')

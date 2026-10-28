@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "contents": {
+    "concept": {
+      "structure": [
+        "提出问题",
+        "给出可见关系",
+        "改变一个条件",
+        "解释结果"
+      ],
+      "evidence": [
+        "关系对应图形变化",
+        "标明类比边界"
+      ]
+    },
+    "history": {
+      "structure": [
+        "时间与来源",
+        "对象与环境",
+        "工艺或事件过程",
+        "影响及边界"
+      ],
+      "evidence": [
+        "实物形态有依据",
+        "工艺示意与历史记录区分"
+      ]
+    },
+    "science": {
+      "structure": [
+        "现象",
+        "机制",
+        "条件改变",
+        "适用边界"
+      ],
+      "evidence": [
+        "因果变化可见",
+        "量纲与简化条件明确"
+      ]
+    },
+    "news": {
+      "structure": [
+        "已知事实",
+        "时间线与证据",
+        "影响",
+        "仍不确定之处"
+      ],
+      "evidence": [
+        "来源与日期",
+        "事实与推测区分"
+      ]
+    },
+    "finance": {
+      "structure": [
+        "问题与口径",
+        "数据比较",
+        "解释及假设",
+        "风险与边界"
+      ],
+      "evidence": [
+        "基数与统计期",
+        "不以图形暗示未经证实的因果"
+      ]
+    },
+    "tutorial": {
+      "structure": [
+        "目标与初态",
+        "操作",
+        "状态反馈",
+        "结果检验"
+      ],
+      "evidence": [
+        "操作对应真实反馈",
+        "错误与恢复路径"
+      ]
+    },
+    "code": {
+      "structure": [
+        "输入与问题",
+        "执行路径",
+        "状态变化",
+        "输出与限制"
+      ],
+      "evidence": [
+        "示例可追踪",
+        "伪代码与真实执行区分"
+      ]
+    }
+  },
+  "styles": {
+    "blueprint": {
+      "label": "工程蓝图",
+      "tasks": [
+        "结构拆解",
+        "运动传递",
+        "原理与剖面"
+      ],
+      "motion": {
+        "reveal": "轮廓与部件依序建立",
+        "action": "沿约束轴运动，因果先后可见",
+        "camera": "结构全景后局部跟随",
+        "hold": "关键状态停留供读图"
+      },
+      "materials": [
+        "轮廓优先",
+        "必要时用金属与剖面填充"
+      ],
+      "effects": {
+        "focus": "corner-brackets",
+        "trace": "crosshair",
+        "optional": [
+          "尺寸导线",
+          "剖面对齐",
+          "局部路径"
+        ],
+        "avoid": [
+          "无意义雷达扫描",
+          "全程故障抖动"
+        ]
+      },
+      "sound": "mechanical",
+      "music": {
+        "bpm": 96,
+        "mode": "minor",
+        "instrumentTheme": "blueprint",
+        "leadDensity": 0.5,
+        "layers": {
+          "lead": 0.55,
+          "pad": 0.28,
+          "bass": 0.22,
+          "percussion": 0.08,
+          "hats": 0,
+          "snare": 0,
+          "shimmer": 0
+        }
+      },
+      "intents": {
+        "inspect": {
+          "lead": 0.2,
+          "percussion": 0
+        },
+        "explain": {
+          "lead": 0.4,
+          "percussion": 0.05
+        },
+        "resolve": {
+          "lead": 0.7,
+          "pad": 0.4
+        }
+      }
+    },
+    "museum": {
+      "label": "博物陈列",
+      "tasks": [
+        "实体辨认",
+        "材料细节",
+        "工艺与证据"
+      ],
+      "motion": {
+        "reveal": "整体轮廓先于细节",
+        "action": "展示真实部件或材料变化",
+        "camera": "稳定全貌后低速局部检视",
+        "hold": "关键细节留出观察时间"
+      },
+      "materials": [
+        "按物件选陶土、纸、木、金属",
+        "原物未知时标明示意"
+      ],
+      "effects": {
+        "focus": "specimen-pin",
+        "trace": "quiet-leader",
+        "optional": [
+          "一次局部扫光",
+          "接触阴影",
+          "细节标注"
+        ],
+        "avoid": [
+          "每次切镜敲钟",
+          "粒子遮盖物件"
+        ]
+      },
+      "sound": "tactile",
+      "music": {
+        "bpm": 76,
+        "mode": "pentatonic",
+        "instrumentTheme": "museum_soft",
+        "leadDensity": 0.25,
+        "layers": {
+          "lead": 0.65,
+          "pad": 0.36,
+          "bass": 0.18,
+          "percussion": 0,
+          "hats": 0,
+          "snare": 0,
+          "shimmer": 0
+        }
+      },
+      "intents": {
+        "inspect": {
+          "lead": 0.18,
+          "pad": 0.24
+        },
+        "explain": {
+          "lead": 0.4
+        },
+        "resolve": {
+          "lead": 0.75,
+          "pad": 0.45
+        }
+      }
+    },
+    "whiteboard": {
+      "label": "白板推导",
+      "tasks": [
+        "概念推导",
+        "步骤教学",
+        "比较与纠错"
+      ],
+      "motion": {
+        "reveal": "按解释次序绘制",
+        "action": "笔尖、线条与结果共用轨迹",
+        "camera": "保持已建立的空间关系",
+        "hold": "保留推导所需的前序信息"
+      },
+      "materials": [
+        "低纹理平面",
+        "颜色承担分组含义"
+      ],
+      "effects": {
+        "focus": "marker-underline",
+        "trace": "marker-tip",
+        "optional": [
+          "圈注",
+          "擦除并重画",
+          "重点下划线"
+        ],
+        "avoid": [
+          "整屏持续手抖",
+          "无接触笔声"
+        ]
+      },
+      "sound": "marker",
+      "music": {
+        "bpm": 92,
+        "mode": "major",
+        "instrumentTheme": "whiteboard",
+        "leadDensity": 0.5,
+        "layers": {
+          "lead": 0.45,
+          "pad": 0.16,
+          "bass": 0.1,
+          "percussion": 0,
+          "hats": 0,
+          "snare": 0,
+          "shimmer": 0
+        }
+      },
+      "intents": {
+        "inspect": {
+          "lead": 0.15,
+          "pad": 0.08
+        },
+        "explain": {
+          "lead": 0.3
+        },
+        "resolve": {
+          "lead": 0.6,
+          "pad": 0.2
+        }
+      }
+    }
+  },
+  "sounds": {
+    "mechanical": {
+      "label": "机械与结构",
+      "roles": {
+        "move": {
+          "kind": "servo",
+          "gain": 0.09,
+          "duration": "step"
+        },
+        "contact": {
+          "kind": "metal_contact",
+          "gain": 0.13,
+          "phase": 0.96
+        },
+        "reveal": null,
+        "draw": {
+          "kind": "trace_air",
+          "gain": 0.045,
+          "duration": "step"
+        },
+        "erase": null,
+        "transition": null
+      }
+    },
+    "tactile": {
+      "label": "轻触与材料",
+      "roles": {
+        "move": {
+          "kind": "paper",
+          "gain": 0.055,
+          "duration": "step"
+        },
+        "contact": {
+          "kind": "felt_contact",
+          "gain": 0.12,
+          "phase": 0.96
+        },
+        "reveal": null,
+        "draw": null,
+        "erase": null,
+        "transition": null
+      }
+    },
+    "marker": {
+      "label": "马克笔与白板",
+      "roles": {
+        "move": null,
+        "contact": {
+          "kind": "felt_contact",
+          "gain": 0.06,
+          "phase": 0.96
+        },
+        "reveal": null,
+        "draw": {
+          "kind": "marker_draw",
+          "gain": 0.1,
+          "duration": "step"
+        },
+        "erase": {
+          "kind": "board_erase",
+          "gain": 0.08,
+          "duration": "step"
+        },
+        "transition": null
+      }
+    },
+    "none": {
+      "label": "无附加动作声",
+      "roles": {
+        "move": null,
+        "contact": null,
+        "reveal": null,
+        "draw": null,
+        "erase": null,
+        "transition": null
+      }
+    }
+  }
+}

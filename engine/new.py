@@ -3,6 +3,7 @@
   new.py <dir> [--name 片名] [--theme tech|history|news|code|finance|default]"""
 import argparse, json, pathlib, shutil, html, subprocess
 from project import write_json, validate_font, file_hash
+from direction import catalog, resolve, plan
 
 SKILL = pathlib.Path(__file__).resolve().parents[1]
 
@@ -37,6 +38,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/process.js"></script>
 <script src="vendor/camera.js"></script>
 <script src="vendor/materials.js"></script>
+<script src="vendor/style-motion.js"></script>
 <script src="vendor/components/base.js"></script>
 <script src="vendor/components/textfx.js"></script>
 <script src="vendor/components/objectfx.js"></script>
@@ -155,13 +157,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dir")
     ap.add_argument("--name", default="我的短片")
-    ap.add_argument("--theme", default="default",
+    ap.add_argument("--theme", default=None,
                     choices=["tech", "history", "news", "code", "finance", "default", "ink", "pixel", "glitch", "whiteboard", "screencast", "blueprint", "museum"])
     ap.add_argument("--ratio", default="16:9",
                     help="16:9(默认)|9:16|1:1|4:3|3:4|4:5|2.35:1|W:H|WxH")
     ap.add_argument("--template", default=None,
                     help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
+    ap.add_argument('--style',choices=list(catalog()['styles']),help='Visual treatment; theme may independently override palette')
+    ap.add_argument('--content',choices=list(catalog()['contents']),default='concept')
+    ap.add_argument('--sound',choices=list(catalog()['sounds']),help='Semantic action-sound palette')
     args = ap.parse_args()
+    args.theme=args.theme or args.style or 'default'
+    args.style=args.style or (args.theme if args.theme in catalog()['styles'] else None)
+    if not args.style and (args.sound or args.content!='concept'):
+        ap.error('--content/--sound require --style blueprint|museum|whiteboard for now')
     proj = pathlib.Path(args.dir).resolve()
     if proj.exists() and any(proj.iterdir()):
         raise SystemExit(f"拒绝覆盖非空项目目录：{proj}；请新建目录或显式维护现有文件")
@@ -171,6 +180,8 @@ def main():
     meta = {"tech": (105, "minor"), "history": (85, "pentatonic"), "news": (115, "major"),
             "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor"), "ink": (72,"pentatonic"), "pixel": (130,"minor"),
             "glitch": (128,"minor"), "whiteboard": (92,"major"), "screencast": (90,"minor"), "blueprint": (96,"minor"), "museum": (76,"pentatonic")}[args.theme]
+    if args.style:
+        sm=catalog()['styles'][args.style]['music'];meta=(sm['bpm'],sm['mode'])
     vw, vh = parse_ratio(args.ratio)
     if vw < 320 or vh < 320:
         raise SystemExit("画幅两边均须 ≥320 像素")
@@ -186,7 +197,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
-    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js'):
+    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js','style-motion.js'):
         shutil.copy(SKILL/'engine'/name,proj/'vendor'/name)
     (proj/'vendor/renderers').mkdir(exist_ok=True)
     shutil.copy(SKILL/'themes/renderers/all.js',proj/'vendor/renderers/all.js')
@@ -245,6 +256,12 @@ def main():
                    "title": f"模板 · {args.template}"})
         (proj / "film.json").write_text(json.dumps(f2, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"✓ 模板 {args.template}：改 data.js → render --full → 同款新片（{dur:.0f}s）")
+    if args.style:
+        film=json.loads((proj/'film.json').read_text(encoding='utf-8'))
+        film['direction']={'content':args.content,'style':args.style,'sound':args.sound or catalog()['styles'][args.style]['sound']}
+        film['music']={}
+        write_json(proj/'film.json',resolve(film))
+        write_json(proj/'checks/direction-plan.json',plan(film,args.content,args.style,args.sound))
     (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     # All fonts are bundled; copy the exact font manifest, preserving offline builds.
     for f in (SKILL/'assets/fonts').iterdir():
@@ -253,8 +270,9 @@ def main():
             shutil.copy(f,proj/'assets/fonts'/f.name)
     # Snapshot the actual builders as well as the browser runtime.
     (proj / "engine").mkdir(exist_ok=True)
-    for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "audio_metrics.py", "alignment.py", "preview.js"):
+    for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "audio_metrics.py", "alignment.py", "direction.py", "preview.js"):
         shutil.copy(SKILL / "engine" / name, proj / "engine" / name)
+    shutil.copy(SKILL/'themes/direction-profiles.json',proj/'engine/direction-profiles.json')
     shutil.copy(SKILL / "requirements.txt", proj / "requirements.txt")
     shutil.copy(SKILL / "requirements-asr.txt", proj / "requirements-asr.txt")
     version = subprocess.run(["git", "-C", str(SKILL), "rev-parse", "HEAD"],

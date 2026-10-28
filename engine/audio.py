@@ -102,6 +102,18 @@ def sfx_voice(kind, p=None):
     def tone(f0, dur, dec, h2=0.0):
         t = np.arange(int(dur * SR)) / SR
         return np.sin(2 * np.pi * f0 * t) * np.exp(-t * dec) + h2 * np.sin(2 * np.pi * 2 * f0 * t) * np.exp(-t * dec * 1.4)
+    if kind in ('servo','metal_contact','felt_contact','marker_draw','board_erase','trace_air'):
+        duration=float(p if p is not None else (.12 if kind.endswith('contact') else .4))
+        if not np.isfinite(duration) or not .02<=duration<=5:raise ValueError('style SFX duration must be .02–5s')
+        t=np.arange(int(duration*SR))/SR
+        attack=np.minimum(t/.008,1);release=np.minimum((duration-t)/.025,1)
+        env=attack*release
+        if kind=='servo':return (.10*np.sin(2*np.pi*(125*t+7*t*t))+.045*np.sin(2*np.pi*390*t))*env
+        if kind=='metal_contact':return (.35*np.sin(2*np.pi*890*t)*np.exp(-t*48)+.14*np.sin(2*np.pi*1437*t)*np.exp(-t*70))*env
+        if kind=='felt_contact':return lowpass(rng.normal(0,1,len(t)),700)*np.exp(-t*55)*env*.7
+        if kind=='marker_draw':return bandpass(rng.normal(0,1,len(t)),650,2300)*(.65+.35*np.sin(2*np.pi*13*t)**2)*env*.24
+        if kind=='board_erase':return bandpass(rng.normal(0,1,len(t)),180,1300)*env*.26
+        return bandpass(rng.normal(0,1,len(t)),1000,2500)*env*.12
     if kind in ('brush','paper','clay'):
         if kind=='clay':return tone(340,.09,52,.12)*.35
         duration=float(p or (.32 if kind=='brush' else .45))
@@ -232,7 +244,12 @@ def _fm_piano(f, dur):
     return x / 1.5
 
 # 主题 → 乐器映射
+def _felt_keys(f,dur):
+    t=np.arange(int(dur*SR))/SR
+    return (np.sin(2*np.pi*f*t)*np.exp(-t*5)+.14*np.sin(2*np.pi*2*f*t)*np.exp(-t*12))*(1-np.exp(-t*90))*.55
+
 THEME_INSTRUMENTS = {
+    "museum_soft": {"lead":_felt_keys,"perc":lambda f,d:.15*_chiptune_noise(d),"bass":_felt_keys,"type":"soft-keys"},
     "blueprint": {"lead": _fm_piano, "perc": lambda f, d=0.05: _chiptune_noise(d), "bass": _fm_piano, "type": "lofi"},
     "museum": {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "organic"},
     "ink":         {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "acoustic"},
@@ -248,6 +265,8 @@ def build(project):
     rng = np.random.default_rng(20260901)
     proj = pathlib.Path(project).resolve()
     film = json.loads((proj / "film.json").read_text(encoding="utf-8"))
+    from direction import resolve, section_layers
+    film=resolve(film)
     cues_file = film.get("voice", {}).get("cues")
     if cues_file and not (proj/cues_file).is_file():
         raise SystemExit(f"缺 cues: {cues_file}")
@@ -289,7 +308,7 @@ def build(project):
         t0 = bi * bar_t
         en = energy_at(t0 + 0.01)
         section=next((b for b in beats if b['start']<=t0+.01<b['end']),{})
-        controls={**music.get('layers',{}),**section.get('music',{}).get('layers',{})}
+        controls={**music.get('layers',{}),**section_layers(film,section),**section.get('music',{}).get('layers',{})}
         for key,value in controls.items():
             if key not in ('pad','bass','percussion','snare','hats','lead','shimmer') or not isinstance(value,(int,float)) or not np.isfinite(value) or not 0<=value<=2:
                 raise ValueError(f'Invalid music layer {key}: {value}')
@@ -324,11 +343,14 @@ def build(project):
         if bi > 0 and (bi % 8 == 0 or en > 0.85):
             place(bgm, v_shimmer((0.3 + en * 0.2)*gain('shimmer')), t0)
 
+    sound_log=[]
     for b in beats:
-        for ev in sound_events(b):
+        for ev in sound_events(b,film):
             tr, kind, g = ev[0], ev[1], ev[2] if len(ev) > 2 else 0.2
             p = ev[3] if len(ev) > 3 else None
-            place(sfx, sfx_voice(kind, p), b["start"] + tr, g)
+            waveform=sfx_voice(kind,p)
+            place(sfx,waveform,b["start"]+tr,g)
+            sound_log.append({'beat':b['id'],'at':round(b['start']+tr,5),'kind':kind,'gain':g,'duration':round(len(waveform)/SR,4)})
 
     speech = []
     cues_path = film.get("voice", {}).get("cues")
@@ -403,7 +425,7 @@ def build(project):
     write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
     from project import write_json
-    write_json(proj/'checks/arrangement.json',{'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
+    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
     mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")

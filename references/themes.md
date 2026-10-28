@@ -58,7 +58,7 @@ tech: {
 | glitch | RGB 分离、切片与扫描线 | 失真锯齿 |
 | screencast | 深色编辑器背景 | FM 电钢 |
 | blueprint | 深蓝工程网格、清晰线条，适合结构/原理图 | 稀疏 FM 电钢，96 BPM 小调 |
-| museum | 墨绿陈列背景、静态柔光与展示平面，适合实体/工艺 | 合成古筝，76 BPM 五声 |
+| museum | 墨绿陈列背景、静态柔光与展示平面，适合实体/工艺 | 旧接口为合成古筝；direction档案采用柔和键音，76 BPM五声 |
 
 `theme` 提供色板与默认渲染器；`renderer` 可显式覆盖。`music.instrumentTheme` 可独立选上述音色；mode/BPM 仍以 film.json 为准。纯英文装饰字可使用随项目复制的 Orbitron 或 Press Start 2P，中文正文保留完整中文字库。不要给中文整行强配不含中文的字体。
 
@@ -77,3 +77,5 @@ PY
 ```
 
 显式 renderer 拼写未知会报错；`renderer:"default"` 可使用基础管线。宣纸/白板缓存按目标宽高更新。
+
+内容、表现语法、声音的独立组合及三套深化风格见 [direction.md](direction.md)。新增三风格项目的实际配乐以direction档案与film.json覆盖为准；旧片不自动迁移。
