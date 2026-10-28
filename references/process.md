@@ -30,3 +30,9 @@
 按信息任务选镜头：结构用剖面，操作用主体特写，关系用同视角对照。减少长时间“左大字右图”的重复；主体动作能解释的内容不用旁边再抄一遍口播。
 
 只增加有识别价值的材质差异：陶土哑光颗粒、金属窄反光、木板纹理方向、纸张薄度与翻面。接触阴影随离地高度变化；示意绘制不声称复原真实历史器物。装饰背景不要抢操作焦点。
+
+## 镜头框景与音效同源
+
+`FrameCamera.draw(ctx,l,beat.camera,drawContent)` 只包裹需要运动的内容。camera 为 `{viewport:{x,y,width,height},frames:[{at,x,y,zoom}]}`；at局部秒，x/y是注视点，zoom为缩放。viewport以屏幕像素指定并裁切；标题、字幕、注记在回调外绘制，避免放大后出框。`FrameCamera.project(point,pose,viewport)` 可计算实体变换后的边界。camera.js随新项目复制；不强制所有镜头移动。
+
+可选 `beat.sfx_events` 把声音绑定到已解析的事件窗，例如 `[{event:"ink",kind:"brush",count:4,gain:0.2,duration:"step"}]`。默认均匀分配count次，phase（0–1）是每次子区间内的触发位置，duration:"step"默认覆盖子区间的0.94倍，可用duty修改；落位声可用phase:0.95。旧sfx数组仍兼容。时间窗改变后音效随之重排，避免维护另一份绝对秒表。

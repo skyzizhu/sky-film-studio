@@ -12,7 +12,7 @@ import subprocess
 import sys
 import wave
 from audio_metrics import measure, violations, policy
-from project import (timeline_errors, cues_path, number, build_current, file_hash)
+from project import (timeline_errors, cues_path, number, build_current, file_hash, sound_events)
 
 
 def load(project):
@@ -43,8 +43,19 @@ def preflight(project, strict=False):
     if errors:
         for error in errors: print('✗',error)
         return False
+    if any(b.get('event_anchors') for b in film.get('beats',[])):
+        try:
+            from alignment import resolved_events
+            words=json.loads((project/film['voice']['words']).read_text())
+            resolved=resolved_events(project,film,cues,words)
+            for b in film['beats']:
+                if b.get('event_anchors') and resolved[b['id']]!=b.get('events',{}):errors.append(f"{b['id']} anchor events stale; run alignment.py apply")
+        except (KeyError,OSError,ValueError,TypeError) as error:errors.append(f'词事件绑定无效: {error}')
     if film.get('voice',{}).get('cues') and cues is None:
         errors.append('配置了 voice.cues 但文件不存在')
+    for beat in film.get('beats',[]):
+        try:sound_events(beat)
+        except (KeyError,ValueError,TypeError) as error:errors.append(str(error))
     for name in ('index.html','storyboard.js','data.js'):
         if not (project/name).is_file(): errors.append(f'缺 {name}')
     if cues:

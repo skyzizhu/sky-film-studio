@@ -52,3 +52,23 @@ aligned.json 格式：`{"alignment":{"reviewed":true},"sentences":[{"text":"已�
 ## 验收
 
 预检检查源音频存在、时长与 cues 相符、句子覆盖及不重叠、句末不越拍/片末、淡出不截语音。再试听首句、含数字句、末句及拼接处。阅读速度超限应拆句/改稿，不只缩小字幕。最终 MP4 还需检查音轨和实际观看/试听。
+
+## 可选：本地词时码与关键动作绑定
+
+`alignment.py` 不属于必需语音服务。可用现有本地 faster-whisper 模型生成逐句TTS的词时间估计，也可按同一JSON结构导入外部校对结果。ASR估计不等于强制对齐或人工校对；不按汉字比例伪造词时码。模型与依赖缺失时明确报告，不自动下载模型或改动用户全局环境。
+
+```sh
+# 可选依赖宜装在独立、架构一致的环境；核心渲染不依赖它
+python -m pip install -r requirements-asr.txt
+python engine/alignment.py transcribe --project "$FILM" --model /absolute/local/model-directory
+python engine/alignment.py apply --project "$FILM"
+python engine/alignment.py audit --project "$FILM" --model /absolute/local/model-directory --video /absolute/final.mp4
+```
+
+`film.voice.words` 指向 `audio/words.json`。每行保存 sentence 索引、file、sha256、source_text 及 words：`[{text,start,end,probability}]`，时间为该句音频内局部秒。短语落在一个多字识别单元内时，保留整个单元的起止，不进一步按字数细分。可选 `voice.asr_vocabulary` 仅提示专有词；最终全文转录不提供整篇待验证文稿作为提示。
+
+`beat.event_anchors` 例：`{"ink":{"sentence":5,"phrase":"上墨","duration":0.9,"offset":0,"edge":"start"}}`。重复词必须指定从0开始的 occurrence；低概率或缺失短语拒绝自动绑定，不能硬猜。apply 将词时码、cues落位与拍起点换算为 events；音频/稿件变更后旧词数据失效，cues或锚点变化后须重新apply。预检验证存储的events没有过期。offset是明确的视觉提前/延迟取舍，不应称为识别精度。
+
+最终audit读取完整音轨，记录全文识别差异，并匹配各句源波形以检查漏句和偏移；匹配不判断发音、人名或主观听感。`checks/audio-review.json` 保留最终视频散列和 `human_listening:pending`，不能把自动转录改写为真人完整试听。人名、同音字和繁简字差异应列出供复核。
+
+本地ASR接口依据：[faster-whisper](https://github.com/SYSTRAN/faster-whisper)。

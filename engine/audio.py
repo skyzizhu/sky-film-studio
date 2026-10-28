@@ -167,7 +167,7 @@ PROG = {
 }
 
 
-from project import timeline_errors, mark_build
+from project import timeline_errors, mark_build, sound_events
 
 
 # ==========================================
@@ -323,7 +323,7 @@ def build(project):
             place(bgm, v_shimmer((0.3 + en * 0.2)*gain('shimmer')), t0)
 
     for b in beats:
-        for ev in b.get("sfx", []):
+        for ev in sound_events(b):
             tr, kind, g = ev[0], ev[1], ev[2] if len(ev) > 2 else 0.2
             p = ev[3] if len(ev) > 3 else None
             place(sfx, sfx_voice(kind, p), b["start"] + tr, g)

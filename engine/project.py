@@ -176,3 +176,29 @@ def build_current(project, kind):
         return True
     except (OSError, ValueError, KeyError):
         return False
+
+
+def sound_events(beat):
+    """Resolve optional sound cues from the same semantic windows as animation."""
+    result=list(beat.get('sfx',[]))
+    for spec in beat.get('sfx_events',[]):
+        window=beat.get('events',{}).get(spec.get('event'))
+        if not (isinstance(window,list) and len(window)==2 and all(number(x)for x in window) and window[0]<window[1]):
+            raise ValueError(f"Missing valid sound event: {spec.get('event')}")
+        count=spec.get('count',1);phase=spec.get('phase',0);gain=spec.get('gain',.2)
+        if not isinstance(count,int) or isinstance(count,bool) or not 1<=count<=64:
+            raise ValueError('Sound event count must be 1–64')
+        if not number(phase) or not 0<=phase<=1 or not number(gain) or not 0<=gain<=2:
+            raise ValueError('Invalid sound event phase/gain')
+        step=(window[1]-window[0])/count
+        for i in range(count):
+            time=window[0]+(i+phase)*step
+            if not 0<=time<beat['end']-beat['start']:raise ValueError('Sound event exceeds beat')
+            row=[round(time,5),spec['kind'],gain]
+            duration=spec.get('duration')
+            if duration is not None:
+                duration=step*spec.get('duty',.94) if duration=='step' else duration
+                if not number(duration) or not .02<=duration<=5:raise ValueError('Invalid sound duration')
+                row.append(duration)
+            result.append(row)
+    return result
