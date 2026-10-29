@@ -6,13 +6,21 @@ import audio
 class ProductLaunchTests(unittest.TestCase):
  def test_variants_change_real_defaults_and_preserve_overrides(self):
   rows=[]
-  for variant in ['precision','flow','playful','studio']:
+  for variant in ['impact','precision','flow','playful','studio']:
    f=resolve({'direction':{'style':'product','content':'product','task':'promotion','variant':variant}})
    self.assertEqual(f,resolve(f));self.assertEqual(f['direction']['variant'],variant);rows.append(f)
-  self.assertEqual([x['bpm']for x in rows],[120,116,124,100]);self.assertEqual(rows[-1]['music']['instrumentTheme'],'product_clean')
-  self.assertEqual(rows[0]['music']['instrumentTheme'],'product_pulse');self.assertEqual(len({x['product']['accent']for x in rows}),4)
+  self.assertEqual([x['bpm']for x in rows],[128,120,116,124,100]);self.assertEqual(rows[-1]['music']['instrumentTheme'],'product_clean')
+  self.assertEqual(rows[0]['music']['instrumentTheme'],'product_pulse');self.assertEqual(len({x['product']['accent']for x in rows}),5)
   f=resolve({'bpm':91,'product':{'accent':'#123456'},'music':{'layers':{'lead':.01}},'direction':{'style':'product','variant':'playful','sound':'none'}})
   self.assertEqual(f['bpm'],91);self.assertEqual(f['product']['accent'],'#123456');self.assertEqual(f['music']['layers']['lead'],.01);self.assertEqual(f['direction']['sound'],'none')
+ def test_high_energy_is_default_and_legacy_explicit_choices_stay_intact(self):
+  default=resolve({'direction':{'style':'product'}})
+  self.assertEqual(default['direction']['variant'],'impact');self.assertEqual(default['bpm'],128);self.assertEqual(default['music']['mode'],'minor');self.assertEqual(default['product']['type_weight'],900)
+  old=resolve({'direction':{'style':'product','variant':'precision'}})
+  self.assertEqual(old['bpm'],120);self.assertEqual(old['music']['mode'],'major')
+  self.assertGreater(default['music']['layers']['bass'],old['music']['layers']['bass'])
+  self.assertLess(default['music']['sections']['inspect']['percussion'],default['music']['sections']['resolve']['percussion'])
+  self.assertEqual(resolve({'bpm':94,'direction':{'style':'product'}})['bpm'],94)
  def test_plan_retains_or_changes_variant_without_mutation(self):
   f={'direction':{'style':'product','variant':'flow'}};original=copy.deepcopy(f)
   self.assertEqual(plan(f,'product','product',None,'promotion')['film']['direction']['variant'],'flow');self.assertEqual(f,original)

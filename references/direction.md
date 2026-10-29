@@ -108,7 +108,7 @@ archive 档案与 history 内容独立组合；暖色档案底、来源注记、
 
 ## 产品展示与观察留白
 
-product 风格、promotion 任务和产品证据要求见 [product.md](product.md)。默认采用动态发布节奏，可选 precision / flow / playful；studio 保留 product_clean 安静陈列。具体接口与默认值见 product.md；不绑定品牌色，也不自动在切点加音效。
+product 风格、promotion 任务和产品证据要求见 [product.md](product.md)。默认采用 impact 高能商业宣传，可选 precision / flow / playful；studio 保留 product_clean 安静陈列。具体接口与默认值见 product.md；不绑定品牌色，也不自动在切点加音效。
 
 逐拍可添加 BGM 关注区间：
 

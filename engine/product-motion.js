@@ -38,5 +38,16 @@ window.ProductMotion=(()=>{
    return {progress:u,size:fit,width:measured};
   }finally{ctx.restore();}
  }
- return Object.freeze({track,type,easing});
+ // A short temporal trail on the moving subject, not a physical shutter model.
+ function trail(ctx,t,event,drawSubject,o={}){
+  const samples=o.samples??4,shutter=o.shutter??.06,opacity=o.opacity??.16;
+  if(!Number.isFinite(t)||!Array.isArray(event)||event.length!==2||!event.every(Number.isFinite)||event[0]>=event[1]||typeof drawSubject!=='function'||!Number.isInteger(samples)||samples<2||samples>8||!Number.isFinite(shutter)||shutter<=0||shutter>.12||!Number.isFinite(opacity)||opacity<0||opacity>.45)throw Error('Invalid product trail');
+  const draw=(at,alpha)=>{ctx.save();try{ctx.globalAlpha*=alpha;drawSubject(ctx,at);}finally{ctx.restore();}};
+  if(t>event[0]&&t<event[1]){
+   const edge=Math.min(1,(t-event[0])/shutter,(event[1]-t)/shutter);
+   for(let i=samples-1;i>=1;i--){const at=t-shutter*i/(samples-1);if(at>=event[0])draw(at,opacity*edge*(1-i/samples)/(samples-1));}
+  }
+  draw(t,1);
+ }
+ return Object.freeze({track,type,easing,trail});
 })();

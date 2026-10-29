@@ -144,7 +144,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True)
     p.add_argument('--content',default='concept');p.add_argument('--style',required=True);p.add_argument('--sound')
     p.add_argument('--task',choices=list(catalog()['tasks']))
-    p.add_argument('--variant',help='Product: precision, flow, playful, studio')
+    p.add_argument('--variant',help='Product: impact, precision, flow, playful, studio')
     p.add_argument('--apply',action='store_true');a=p.parse_args()
     root=pathlib.Path(a.project).resolve();film=json.loads((root/'film.json').read_text(encoding='utf-8'))
     result=plan(film,a.content,a.style,a.sound,a.task,a.variant)

@@ -171,7 +171,7 @@ def main():
                     help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
     ap.add_argument('--style',choices=list(catalog()['styles']),help='Visual treatment; theme may independently override palette')
     ap.add_argument('--content',choices=list(catalog()['contents']),default='concept')
-    ap.add_argument('--variant',choices=['precision','flow','playful','studio'],help='Product launch treatment')
+    ap.add_argument('--variant',choices=['impact','precision','flow','playful','studio'],help='Product launch treatment')
     ap.add_argument('--task',choices=list(catalog()['tasks']),help='Narrative task, independent of topic/style/sound')
     ap.add_argument('--sound',choices=list(catalog()['sounds']),help='Semantic action-sound palette')
     args = ap.parse_args()

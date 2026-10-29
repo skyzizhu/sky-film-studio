@@ -565,8 +565,149 @@
           "percussion": 0.2
         }
       },
-      "default_variant": "precision",
+      "default_variant": "impact",
       "variants": {
+        "impact": {
+          "label": "高能商业宣传",
+          "guidance": [
+            "先以产品卖点组织悬念、蓄力、爆发、识别与收束，再设计镜头",
+            "产品、相机、灯光、画面大字与声音共同完成关键动作",
+            "用尺度反差、惯性和方向匹配建立速度感，快段之间留可读停顿",
+            "色彩和材质服从产品身份；文字参与构图而非附加说明",
+            "按 references/product-impact.md 逐镜填写视觉动作、转场连接点与声音落点；配置本身不会生成这些镜头"
+          ],
+          "overrides": {
+            "product": {
+              "easing": "arrive",
+              "accent": "#a6ff39",
+              "secondary": "#7962ff",
+              "background": "#080c16",
+              "ink": "#f5f8ff",
+              "type_weight": 900
+            },
+            "motion": {
+              "reveal": "轮廓悬念或结果钩子后快速揭示产品",
+              "action": "蓄力、加速、惯性落定与识别停顿交替",
+              "camera": "近远景反差、沿产品运动匹配衔接；重要操作保留稳定观察点",
+              "hold": "快速段之后让产品、主卖点和结尾清晰落定"
+            },
+            "effects": {
+              "focus": "kinetic-headline",
+              "trace": "directional-light",
+              "optional": [
+                "局部轮廓光与材质扫光",
+                "与运动绑定的短拖影",
+                "产品前后景遮挡与视差",
+                "匹配切换与动态文字",
+                "明确有空间动机的粒子或光线"
+              ],
+              "avoid": [
+                "持续全屏闪白",
+                "高光吞没产品结构",
+                "每一镜都用同一个甩镜",
+                "以强效果掩盖错误产品状态"
+              ]
+            },
+            "music": {
+              "bpm": 128,
+              "mode": "minor",
+              "leadDensity": 0.65,
+              "layerRamp": 0.22,
+              "layers": {
+                "lead": 0.47,
+                "pad": 0.14,
+                "bass": 0.4,
+                "percussion": 0.33,
+                "snare": 0.095,
+                "hats": 0.12,
+                "shimmer": 0.03
+              },
+              "motif": [
+                [
+                  [
+                    0,
+                    0,
+                    0.2
+                  ],
+                  [
+                    0.75,
+                    2,
+                    0.2
+                  ],
+                  [
+                    1.5,
+                    1,
+                    0.25
+                  ],
+                  [
+                    3,
+                    4,
+                    0.35
+                  ]
+                ],
+                [],
+                [
+                  [
+                    0,
+                    0,
+                    0.2
+                  ],
+                  [
+                    1,
+                    2,
+                    0.2
+                  ],
+                  [
+                    2.5,
+                    4,
+                    0.25
+                  ],
+                  [
+                    3.5,
+                    2,
+                    0.2
+                  ]
+                ],
+                [
+                  [
+                    0,
+                    1,
+                    0.4
+                  ],
+                  [
+                    2,
+                    0,
+                    0.65
+                  ]
+                ]
+              ]
+            },
+            "intents": {
+              "inspect": {
+                "lead": 0.12,
+                "pad": 0.2,
+                "percussion": 0.035,
+                "hats": 0,
+                "snare": 0
+              },
+              "explain": {
+                "lead": 0.28,
+                "bass": 0.25,
+                "percussion": 0.15,
+                "hats": 0.035,
+                "snare": 0.025
+              },
+              "resolve": {
+                "lead": 0.47,
+                "pad": 0.14,
+                "bass": 0.4,
+                "percussion": 0.33,
+                "hats": 0.12,
+                "snare": 0.095
+              }
+            }
+          }
+        },
         "precision": {
           "label": "精密发布",
           "guidance": [

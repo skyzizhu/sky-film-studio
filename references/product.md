@@ -1,10 +1,12 @@
 # 产品宣传与展示
 
-使用独立任务 `promotion` 组织卖点与证据，`product` 默认采用有快慢对比的发布节奏，包含局部揭示、产品近景、动态排版和事件重音；可用 studio 保留安静陈列。两者可与其他内容/风格组合：工程产品可用 blueprint 解释机制，软件可保留真实界面。
+使用独立任务 `promotion` 组织卖点与证据，`product` 默认采用 impact 高能商业宣传，强调产品、镜头、灯光、动效大字与声音共同形成速度和冲击；可用 studio 保留安静陈列。两者可与其他内容/风格组合：工程产品可用 blueprint 解释机制，软件可保留真实界面。
 
 ```sh
-python3 engine/new.py /absolute/new-film --content product --task promotion --style product --variant precision
+python3 engine/new.py /absolute/new-film --content product --task promotion --style product --variant impact
 ```
+
+高能商业宣传的多维设计、逐镜制作与观看验收见 [product-impact.md](product-impact.md)。现有 Canvas 投影与合成音乐支持风格示意；需要商业级材质或复杂真实产品时选用合适的授权素材/3D 管线，不能将平面高光称为写实渲染。
 
 ## 产品与观众
 
@@ -18,11 +20,11 @@ python3 engine/new.py /absolute/new-film --content product --task promotion --st
 
 整体轮廓与身份 → 一个关键操作 → 看得见的结果 → 品牌/行动入口。按文稿调整，不强制四镜或固定节奏。一次特写突出一个部件；动作完成后保留观察时间，再换卖点。结果、字幕和品牌名不同时争主焦点。
 
-通过轮廓、部件连接或操作结果衔接；镜头推进不让比例、标识或 UI 状态突然改变。明确对照可以硬切。使用 MaterialFX.sweep 时裁切到表面，避开品牌/文字/屏幕；默认不加粒子与循环扫光。末尾保留可读的行动入口，只使用已提供或已核实的链接/二维码。
+通过轮廓、部件连接或操作结果衔接；镜头推进不让比例、标识或 UI 状态突然改变。明确对照可以硬切。使用 MaterialFX.sweep 时裁切到表面，避开品牌/文字/屏幕；粒子和扫光按镜头目的添加，不让装饰遮住产品。末尾保留可读的行动入口，只使用已提供或已核实的链接/二维码。
 
 ## 声音
 
-默认 product_pulse 合成主奏、低频节拍与短音效，细节段弱化，结尾收束。studio 使用原 product_clean 稀疏配乐。product_launch 声音档案提供发布重音、轻触与短提示，但只在显式事件上发声，不按每个切点自动添加音效。材料声按实际产品覆盖，软件按钮无声也可以成立。品牌声音标识使用用户素材，不能把通用 chime 当作其真实标识。
+默认 impact 使用 128 BPM 小调 product_pulse，增强低频与打击起点，细节段弱化，结尾收束；蓄力、留白和爆发仍需逐段编排，改 BPM 不会自动生成广告配乐。studio 使用原 product_clean 稀疏配乐。product_launch 声音档案提供发布重音、轻触与短提示，但只在显式事件上发声，不按每个切点自动添加音效。材料声按实际产品覆盖，软件按钮无声也可以成立。品牌声音标识使用用户素材，不能把通用 chime 当作其真实标识。
 
 关键结果可用 `music.focus_events` 适度压低 BGM，接口见 [direction.md](direction.md)。它不改变口播或动作声。用同一片段做声音对照，再试听首句、操作接点和片尾；技术通过不代表宣传效果或品牌匹配已验收。
 
@@ -34,7 +36,8 @@ python3 engine/new.py /absolute/new-film --content product --task promotion --st
 
 | variant | 构图与运动 | 配乐起点 |
 |---|---|---|
-| precision（默认） | 微距到全貌、准确落定、少量大字 | 120 BPM，短促主奏与低频节拍 |
+| impact（默认） | 深色强反差起点、动效大字、尺度变化与惯性；按卖点重设品牌色 | 128 BPM，小调，增强低频/打击与细节段反差 |
+| precision | 微距到全貌、准确落定、少量大字 | 120 BPM，短促主奏与低频节拍 |
 | flow | 轮廓/材质连接镜头、连续空间轨迹 | 116 BPM，更连贯的音层 |
 | playful | 大字与产品角度共构图、色块和遮罩 | 124 BPM，错落音型与休止 |
 | studio | 稳定全貌、慢速局部观察 | 100 BPM，原安静陈列乐句 |
@@ -63,3 +66,6 @@ ProductMotion.type(ctx,t,[.2,.75],'打开，有序。',
 track 返回 x/y/scale/rx/ry/rz/opacity；角度为场景约定的弧度，缺字段继承前值，时间前后保持端点。到达后一帧的 ease 控制该段：arrive 快起缓停，smooth 两端平滑，linear 匀速。相同相邻姿态形成停留，不累积帧状态；姿态本身不替场景绘制产品或求解机械结构。type 按实测文字宽度缩放字号，在局部遮罩内入场，保留完整文字并恢复上层 alpha/变换。
 
 全片验证既要看关键帧，也要覆盖快速运动与落定后的连续片段。几何可辨、接触遮挡和可读性优先；有限投影与乱序绘制检查不能证明广告效果或真实物理。
+
+
+快速运动可用 `ProductMotion.trail(ctx,t,[start,end],drawSubject,{samples:4,shutter:.06,opacity:.16})`：drawSubject(ctx,sampleTime) 只画当前运动主体，必须纯时间求值；助手先画少量历史姿态再画当前姿态，保留父级 alpha 和变换。它是短拖影，不是物理快门或全场景运动模糊。停留段不会残留；文字与真实 UI 通常单独绘制，避免重影损害可读性。
