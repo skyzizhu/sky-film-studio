@@ -23,6 +23,14 @@ try:
   }
   if(SUBTITLE_LAYOUT.map(p=>p.lines.join('')).join('')!=='字幕在内容转场时保持独立。')throw Error('Lost subtitles');
   for(const [w,h] of [[540,960],[640,440]]){c.width=w;c.height=h;snap(10.4);if(ctx.getImageData(w-2,h-2,1,1).data[3]!==255)throw Error('Blend cache size');}
+  // A long entering dissolve must also obey the next boundary's outgoing fade.
+  c.width=640;c.height=440;
+  const chain=[{scene:'a',start:0,end:1},{scene:'b',start:1,end:2,transition:{type:'dissolve',duration:.9}},{scene:'a',start:2,end:3,transition:{type:'fade',duration:.9}}];
+  SceneTransition.validate(chain);
+  const chainPixel=t=>{ctx.reset();ctx.fillStyle='#000';ctx.fillRect(0,0,640,440);SceneTransition.draw(ctx,t,chain,scenes);return Array.from(ctx.getImageData(20,20,1,1).data);};
+  const before=chainPixel(1.899),after=chainPixel(1.901);
+  if(before.some((v,i)=>Math.abs(v-after[i])>2))throw Error('Overlapping transitions jump: '+before+' -> '+after);
+  for(const t of [1.1,1.899,1.901,2,2.2]){const a=chainPixel(t).join();chainPixel(.5);if(a!==chainPixel(t).join())throw Error('Chain history dependence');}
   // Compare opaque interiors only; antialiasing at a tangent is not interference.
   let maxOverlap=0;
   const a=GearMotion.geometry({teeth:18,module:10});
@@ -38,6 +46,6 @@ try:
    }
   }
   if(maxOverlap>4)throw Error('Gear tooth interiors overlap: '+maxOverlap);
-  return {dissolve_midpoint:rgb,shared_motion:'continuous',captions:'retained',max_gear_overlap_pixels:maxOverlap};
+  return {overlap_before:before,overlap_after:after,dissolve_midpoint:rgb,shared_motion:'continuous',captions:'retained',max_gear_overlap_pixels:maxOverlap};
  }'''))
 finally:browser.close();pw.stop();server.shutdown()

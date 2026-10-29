@@ -28,6 +28,7 @@ window.SceneTransition=(()=>{
   let i=0;for(let k=0;k<beats.length;k++)if(t>=beats[k].start)i=k;
   const b=beats[i],current=config(b,global),next=i+1<beats.length?config(beats[i+1],global):{type:'cut',duration:0};
   const fn=scenes[b.scene];
+  const exitOpacity=next.type==='fade'?smooth((b.end-t)/(next.duration/2)):1;
   if(i&&current.type==='dissolve'&&t<b.start+current.duration){
    const u=smooth((t-b.start)/current.duration),prev=beats[i-1];
    const oldTime=Math.max(prev.start,prev.end-1/fps);
@@ -37,11 +38,10 @@ window.SceneTransition=(()=>{
    if(mixed.width!==ctx.canvas.width||mixed.height!==ctx.canvas.height){mixed.width=ctx.canvas.width;mixed.height=ctx.canvas.height;}
    const g=mixed.getContext('2d');g.reset();g.globalAlpha=1-u;g.drawImage(a,0,0);
    g.globalCompositeOperation='lighter';g.globalAlpha=u;g.drawImage(c,0,0);
-   ctx.drawImage(mixed,0,0);return;
+   ctx.save();ctx.globalAlpha*=exitOpacity;ctx.drawImage(mixed,0,0);ctx.restore();return;
   }
-  let opacity=1;
+  let opacity=exitOpacity;
   if(i&&current.type==='fade')opacity=Math.min(opacity,smooth((t-b.start)/(current.duration/2)));
-  if(next.type==='fade')opacity=Math.min(opacity,smooth((b.end-t)/(next.duration/2)));
   if(opacity>=1){fn(ctx,t,t-b.start,b);return;}
   const c=layer(0,ctx,fn,t,b);ctx.save();ctx.globalAlpha*=opacity;ctx.drawImage(c,0,0);ctx.restore();
  }

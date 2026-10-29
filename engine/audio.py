@@ -260,6 +260,40 @@ THEME_INSTRUMENTS = {
 }
 
 
+def music_controls(beats,music,bars,bar_t,film):
+    from direction import section_layers
+    result=[]
+    for bi in range(bars):
+        section=next((b for b in beats if b['start']<=bi*bar_t+.01<b['end']),{})
+        controls={**music.get('layers',{}),**section_layers(film,section),**section.get('music',{}).get('layers',{})}
+        for key,value in controls.items():
+            if key not in ('pad','bass','percussion','snare','hats','lead','shimmer') or not isinstance(value,(int,float)) or isinstance(value,bool) or not np.isfinite(value) or not 0<=value<=2:
+                raise ValueError(f'Invalid music layer {key}: {value}')
+        result.append(controls)
+    return result
+
+
+def layer_curve(schedule,key,bar_t,ramp,times):
+    xs=[0.];ys=[schedule[0].get(key,1)]
+    for i,controls in enumerate(schedule[1:],1):
+        old=schedule[i-1].get(key,1);new=controls.get(key,1)
+        xs.extend([i*bar_t,i*bar_t+ramp]);ys.extend([old,new])
+    return np.interp(times,xs,ys)
+
+
+def validate_motif(motif):
+    if motif is None:return
+    if not isinstance(motif,list) or not 1<=len(motif)<=8:raise ValueError('music.motif requires 1–8 bars')
+    for bar in motif:
+        if not isinstance(bar,list) or len(bar)>16:raise ValueError('music.motif bar supports up to 16 notes')
+        previous=-1
+        for row in bar:
+            if not isinstance(row,list) or len(row)!=3:raise ValueError('Motif note is [beat,noteIndex,durationBeats]')
+            at,note,duration=row
+            if not all(isinstance(v,(int,float)) and not isinstance(v,bool) and np.isfinite(v) for v in row) or not 0<=at<4 or at<previous or not isinstance(note,int) or not 0<=note<=7 or not 0<duration<=4:
+                raise ValueError('Invalid motif note')
+            previous=at
+
 def build(project):
     global rng
     rng = np.random.default_rng(20260901)
@@ -303,45 +337,57 @@ def build(project):
 
     bgm = np.zeros((2, N)); sfx = np.zeros((2, N)); voice = np.zeros((2, N))
 
+    schedule=music_controls(beats,music,bars,bar_t,film)
+    ramp=music.get('layerRamp',0)
+    if not isinstance(ramp,(int,float)) or isinstance(ramp,bool) or not np.isfinite(ramp) or not 0<=ramp<=min(2,bar_t):raise ValueError('music.layerRamp must be 0–min(2,bar duration)')
+    motif=music.get('motif');validate_motif(motif)
+    def music_place(key,x,at,amp=1,pan=0):
+        if not ramp:return place(bgm,x,at,amp*controls.get(key,1),pan=pan)
+        envelope=layer_curve(schedule,key,bar_t,ramp,at+np.arange(len(x))/SR)
+        return place(bgm,x*envelope,at,amp,pan=pan)
     arrangement_log=[]
     for bi in range(bars):
         t0 = bi * bar_t
         en = energy_at(t0 + 0.01)
         section=next((b for b in beats if b['start']<=t0+.01<b['end']),{})
-        controls={**music.get('layers',{}),**section_layers(film,section),**section.get('music',{}).get('layers',{})}
-        for key,value in controls.items():
-            if key not in ('pad','bass','percussion','snare','hats','lead','shimmer') or not isinstance(value,(int,float)) or not np.isfinite(value) or not 0<=value<=2:
-                raise ValueError(f'Invalid music layer {key}: {value}')
-        gain=lambda key:controls.get(key,1)
+        controls=schedule[bi]
         lead_on=controls.get('lead',1 if instruments else int(en>.55))>0
         arrangement_log.append({'start':round(t0,4),'section':section.get('id'),'layers':controls,'lead_active':bool(lead_on and bi>0 and en>.08)})
         name, notes, root = prog[bi % 4]
         for vi, nn in enumerate(notes):
-            place(bgm, v_pad(midi(nn), bar_t + 0.5), t0, (0.30 + en * 0.35) * 0.34 * gain('pad'),
+            music_place('pad', v_pad(midi(nn), bar_t + 0.5), t0, (0.30 + en * 0.35) * 0.34 ,
                   pan=-0.35 if vi % 2 == 0 else 0.35)
         if en > 0.15:
             bb = [0, 2] if en < 0.6 else ([0, 1.5, 2, 3.5] if en > 0.8 else [0, 1, 2, 3])
             for k, bd in enumerate(bb):
-                place(bgm, bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72) * gain('bass'))
+                music_place('bass', bass(midi(root), beat_t * 0.92), t0 + bd * beat_t, 0.5 * (1 if k == 0 else 0.72))
         if en > 0.25:
             for bd in ([0, 2] if en < 0.6 else [0, 1, 2, 3]):
-                place(bgm, percussion(60, .5), t0 + bd * beat_t, (0.45 + en * 0.3)*gain('percussion'))
+                music_place('percussion', percussion(60, .5), t0 + bd * beat_t, (0.45 + en * 0.3))
         if en > 0.45:
             for bd in (1, 3):
-                place(bgm, v_snare(), t0 + bd * beat_t, (0.28 + en * 0.25)*gain('snare'))
+                music_place('snare', v_snare(), t0 + bd * beat_t, (0.28 + en * 0.25))
         if en > 0.2:
             for k in range(8):
-                place(bgm, v_hat(en > 0.6 and k % 2 == 1), t0 + k * beat_t * 0.5,
-                      (0.12 if k % 2 else 0.2) * (0.7 + en * 0.5)*gain('hats'))
+                music_place('hats', v_hat(en > 0.6 and k % 2 == 1), t0 + k * beat_t * 0.5,
+                      (0.12 if k % 2 else 0.2) * (0.7 + en * 0.5))
+        lead_count=0
         if lead_on and en > .08 and bi > 0:
-            pat = [0, 1, 2, 3, 2, 1]
-            dens = max(1, round(4*music.get('leadDensity',.5))) if instruments or 'lead' in controls else max(4,int(8*arp_dens))
-            for k in range(dens):
-                note = notes[pat[k % len(pat)] % len(notes)] + (12 if pat[k % len(pat)] >= 2 else 0)
-                place(bgm, lead(midi(note), .55), t0 + k * bar_t / dens,
-                      (0.1 + en * 0.08) * (1 if k % 4 == 0 else 0.7)*gain('lead'))
+            if motif is not None:
+                for at,step,length in motif[(bi-1)%len(motif)]:
+                    note=notes[step%len(notes)]+12*(step//len(notes))
+                    music_place('lead',lead(midi(note),length*beat_t),t0+at*beat_t,.1+en*.08)
+                    lead_count+=1
+            else:
+                pat = [0, 1, 2, 3, 2, 1]
+                dens = max(1, round(4*music.get('leadDensity',.5))) if instruments or 'lead' in controls else max(4,int(8*arp_dens))
+                for k in range(dens):
+                    note = notes[pat[k % len(pat)] % len(notes)] + (12 if pat[k % len(pat)] >= 2 else 0)
+                    music_place('lead',lead(midi(note),.55),t0+k*bar_t/dens,(.1+en*.08)*(1 if k%4==0 else .7))
+                    lead_count+=1
+        arrangement_log[-1].update(lead_active=bool(lead_count),lead_count=lead_count)
         if bi > 0 and (bi % 8 == 0 or en > 0.85):
-            place(bgm, v_shimmer((0.3 + en * 0.2)*gain('shimmer')), t0)
+            music_place('shimmer',v_shimmer(.3+en*.2),t0)
 
     sound_log=[]
     for b in beats:
@@ -425,7 +471,7 @@ def build(project):
     write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
     from project import write_json
-    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
+    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'layer_ramp_seconds':ramp,'motif':motif,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
     mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")
