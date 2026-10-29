@@ -3,9 +3,10 @@
   new.py <dir> [--name 片名] [--theme tech|history|news|code|finance|default]"""
 import argparse, json, pathlib, shutil, html, subprocess
 from project import write_json, validate_font, file_hash
-from direction import catalog, resolve, plan
+from direction import catalog, resolve, plan, profile
 
 SKILL = pathlib.Path(__file__).resolve().parents[1]
+FONT_SOURCES = {"NotoSansSC-VF.ttf": {"source": "https://github.com/google/fonts/tree/main/ofl/notosanssc", "license_file": "OFL-NotoSansSC.txt"}}
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -23,7 +24,7 @@ INDEX_HTML = """<!DOCTYPE html>
   window.__fontsReady = Promise.all([
     ["NotoSerifSC-Regular.otf",400,"Noto Serif SC"], ["NotoSerifSC-SemiBold.otf",600,"Noto Serif SC"], ["NotoSerifSC-Bold.otf",700,"Noto Serif SC"],
     ["LXGWWenKai-500.woff",500,"LXGW WenKai"], ["Ma_Shan_Zheng.ttf",400,"Ma Shan Zheng"],
-    ["Orbitron.ttf",400,"Orbitron"], ["Press_Start_2P.ttf",400,"Press Start 2P"]
+    ["Orbitron.ttf",400,"Orbitron"], ["Press_Start_2P.ttf",400,"Press Start 2P"], ["NotoSansSC-VF.ttf","100 900","Noto Sans SC"]
   ].map(([f, w, family]) => {
     const ff = new FontFace(family, `url(assets/fonts/${f})`, { weight: String(w) });
     return ff.load().then(x => document.fonts.add(x)).catch(error => { window.__fontErrors.push(f); console.warn(`字体未加载: ${f}`); });
@@ -39,6 +40,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <script src="vendor/camera.js"></script>
 <script src="vendor/materials.js"></script>
 <script src="vendor/style-motion.js"></script>
+<script src="vendor/product-motion.js"></script>
 <script src="vendor/transitions.js"></script>
 <script src="vendor/gears.js"></script>
 <script src="vendor/layout.js"></script>
@@ -169,13 +171,15 @@ def main():
                     help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
     ap.add_argument('--style',choices=list(catalog()['styles']),help='Visual treatment; theme may independently override palette')
     ap.add_argument('--content',choices=list(catalog()['contents']),default='concept')
+    ap.add_argument('--variant',choices=['precision','flow','playful','studio'],help='Product launch treatment')
     ap.add_argument('--task',choices=list(catalog()['tasks']),help='Narrative task, independent of topic/style/sound')
     ap.add_argument('--sound',choices=list(catalog()['sounds']),help='Semantic action-sound palette')
     args = ap.parse_args()
     args.theme=args.theme or args.style or 'default'
     args.style=args.style or (args.theme if args.theme in catalog()['styles'] else None)
-    if not args.style and (args.sound or args.task or args.content!='concept'):
-        ap.error('--content/--sound/--task require a supported --style')
+    if not args.style and (args.sound or args.task or args.variant or args.content!='concept'):
+        ap.error('--content/--sound/--task/--variant require a supported --style')
+    if args.variant and args.style!='product':ap.error('--variant currently requires --style product')
     proj = pathlib.Path(args.dir).resolve()
     if proj.exists() and any(proj.iterdir()):
         raise SystemExit(f"拒绝覆盖非空项目目录：{proj}；请新建目录或显式维护现有文件")
@@ -184,9 +188,9 @@ def main():
     proj.mkdir(parents=True, exist_ok=True)
     meta = {"tech": (105, "minor"), "history": (85, "pentatonic"), "news": (115, "major"),
             "code": (100, "minor"), "finance": (100, "major"), "default": (100, "minor"), "ink": (72,"pentatonic"), "pixel": (130,"minor"),
-            "glitch": (128,"minor"), "whiteboard": (92,"major"), "screencast": (90,"minor"), "blueprint": (96,"minor"), "museum": (76,"pentatonic"), "archive": (80,"minor"), "product": (100,"major")}[args.theme]
+            "glitch": (128,"minor"), "whiteboard": (92,"major"), "screencast": (90,"minor"), "blueprint": (96,"minor"), "museum": (76,"pentatonic"), "archive": (80,"minor"), "product": (120,"major")}[args.theme]
     if args.style:
-        sm=catalog()['styles'][args.style]['music'];meta=(sm['bpm'],sm['mode'])
+        sm=profile({'style':args.style,**({'variant':args.variant}if args.variant else {})})['music'];meta=(sm['bpm'],sm['mode'])
     vw, vh = parse_ratio(args.ratio)
     if vw < 320 or vh < 320:
         raise SystemExit("画幅两边均须 ≥320 像素")
@@ -202,7 +206,7 @@ def main():
     (proj / "vendor" / "components").mkdir(parents=True, exist_ok=True)
     shutil.copy(SKILL / "engine" / "lib.js", proj / "vendor" / "lib.js")
     shutil.copy(SKILL / "engine" / "motion.js", proj / "vendor" / "motion.js")
-    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js','style-motion.js','transitions.js','gears.js','layout.js','teaching.js'):
+    for name in ('blur.js','renderer.js','process.js','camera.js','materials.js','style-motion.js','transitions.js','gears.js','layout.js','teaching.js','product-motion.js'):
         shutil.copy(SKILL/'engine'/name,proj/'vendor'/name)
     (proj/'vendor/renderers').mkdir(exist_ok=True)
     shutil.copy(SKILL/'themes/renderers/all.js',proj/'vendor/renderers/all.js')
@@ -263,17 +267,20 @@ def main():
         print(f"✓ 模板 {args.template}：改 data.js → render --full → 同款新片（{dur:.0f}s）")
     if args.style:
         film=json.loads((proj/'film.json').read_text(encoding='utf-8'))
-        film['direction']={'content':args.content,'style':args.style,'sound':args.sound or catalog()['styles'][args.style]['sound']}
+        film['direction']={'content':args.content,'style':args.style,'sound':args.sound or profile({'style':args.style,**({'variant':args.variant}if args.variant else {})})['sound']}
         if args.task:film['direction']['task']=args.task
+        if args.variant:film['direction']['variant']=args.variant
         film['music']={}
         write_json(proj/'film.json',resolve(film))
-        write_json(proj/'checks/direction-plan.json',plan(film,args.content,args.style,args.sound,args.task))
+        write_json(proj/'checks/direction-plan.json',plan(film,args.content,args.style,args.sound,args.task,args.variant))
     (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     # All fonts are bundled; copy the exact font manifest, preserving offline builds.
     for f in (SKILL/'assets/fonts').iterdir():
         if f.suffix.lower() in ('.otf','.ttf','.woff','.woff2'):
             if f.suffix.lower() in ('.otf','.ttf'): validate_font(f)
             shutil.copy(f,proj/'assets/fonts'/f.name)
+    for license_path in (SKILL/'assets/fonts').glob('OFL-*.txt'):
+        shutil.copy(license_path,proj/'assets/fonts'/license_path.name)
     # Snapshot the actual builders as well as the browser runtime.
     (proj / "engine").mkdir(exist_ok=True)
     for name in ("render.py", "audio.py", "check.py", "voice.py", "project.py", "encode.py", "audio_metrics.py", "alignment.py", "direction.py", "preview.js"):
@@ -285,8 +292,8 @@ def main():
                              capture_output=True, text=True).stdout.strip() or "unversioned"
     write_json(proj / "provenance.json", {"engine_revision": version,
                "source_hashes": {str(p.relative_to(proj)):file_hash(p) for p in sorted((proj/"engine").glob("*")) if p.is_file()},
-               "fonts": {p.name:{"sha256":file_hash(p),"license":"OFL", "file":p.name}
-                         for p in (proj/"assets/fonts").iterdir() if p.is_file()}, "assets": [],
+               "fonts": {p.name:{"sha256":file_hash(p),"license":"OFL", "file":p.name, **FONT_SOURCES.get(p.name,{})}
+                         for p in (proj/"assets/fonts").iterdir() if p.suffix.lower() in ('.otf','.ttf','.woff','.woff2')}, "assets": [],
                "rebuild": "python3 engine/check.py auto --project ."})
     write_json(proj / "claims.json", {"reviewed": False, "claims": [],
                "note": "核对所有事实主张及示例标识后设 reviewed:true；程序只检查结构，不替代事实核实"})

@@ -1,9 +1,9 @@
 # 产品宣传与展示
 
-使用独立任务 `promotion` 组织卖点与证据，`product` 风格提供安静的摄影棚式背景、局部展示、克制配乐与操作声。两者可与其他内容/风格组合：工程产品可用 blueprint 解释机制，软件可保留真实界面。
+使用独立任务 `promotion` 组织卖点与证据，`product` 默认采用有快慢对比的发布节奏，包含局部揭示、产品近景、动态排版和事件重音；可用 studio 保留安静陈列。两者可与其他内容/风格组合：工程产品可用 blueprint 解释机制，软件可保留真实界面。
 
 ```sh
-python3 engine/new.py /absolute/new-film --content product --task promotion --style product
+python3 engine/new.py /absolute/new-film --content product --task promotion --style product --variant precision
 ```
 
 ## 产品与观众
@@ -22,10 +22,44 @@ python3 engine/new.py /absolute/new-film --content product --task promotion --st
 
 ## 声音
 
-默认 product_clean 合成主奏与稀疏乐句，细节段弱化，结尾可回收主题。product 声音档案不为入场、移动或切镜自动发声；接触与路径声由事件显式触发。材料声按实际产品覆盖，软件按钮无声也可以成立。品牌声音标识使用用户素材，不能把通用 chime 当作其真实标识。
+默认 product_pulse 合成主奏、低频节拍与短音效，细节段弱化，结尾收束。studio 使用原 product_clean 稀疏配乐。product_launch 声音档案提供发布重音、轻触与短提示，但只在显式事件上发声，不按每个切点自动添加音效。材料声按实际产品覆盖，软件按钮无声也可以成立。品牌声音标识使用用户素材，不能把通用 chime 当作其真实标识。
 
 关键结果可用 `music.focus_events` 适度压低 BGM，接口见 [direction.md](direction.md)。它不改变口播或动作声。用同一片段做声音对照，再试听首句、操作接点和片尾；技术通过不代表宣传效果或品牌匹配已验收。
 
 ## 验收
 
 核对真实产品/概念示意、主张来源、实际演示结果、品牌一致性、字幕和行动入口可读性。evidence 记录 subject/change/result 与事件引用；结构检查不证明卖点真实。默认 30–300 秒范围沿用本技能；更短广告需明确调整范围，不能默默输出契约外文件。
+
+## 动态发布的可选处理
+
+| variant | 构图与运动 | 配乐起点 |
+|---|---|---|
+| precision（默认） | 微距到全貌、准确落定、少量大字 | 120 BPM，短促主奏与低频节拍 |
+| flow | 轮廓/材质连接镜头、连续空间轨迹 | 116 BPM，更连贯的音层 |
+| playful | 大字与产品角度共构图、色块和遮罩 | 124 BPM，错落音型与休止 |
+| studio | 稳定全貌、慢速局部观察 | 100 BPM，原安静陈列乐句 |
+
+它们是本技能的设计方向，数值不是任何品牌的固定规范。参考来源及本轮研究边界见 [product-references.md](product-references.md)。一个项目选主方向，再按内容调整；不把三家公司片段机械拼在一起。选择指导会写入 direction-plan，但不会替作者完成镜头。显式 BPM、音乐、颜色仍优先；换旧片方向时先看覆盖项，不宣称改了名字就完成风格转换。
+
+- 节奏：用快起减速、尺度对比与短镜头推进，给产品识别、操作结果和行动入口留清楚的落定段。不是全片匀速旋转，也不要求每一秒换景。不要用短字卡承载观众来不及读的完整口播。
+- 衔接：轮廓、运动方向、部件或颜色关系用于匹配切换；同一产品的真实形态与机制状态继续保留。明确的全貌/微距切换可以硬切，不能用闪白掩盖穿插。
+- 声音：launch_hit 用于少量揭示/收束，air_sweep 用于有方向的快速运动，ui_tick 用于明确的小事件；全为合成示意。声音数量按动作需要决定，不强制每镜 whoosh。
+- 字体：随项目快照的 Noto Sans SC 可变字体用于现代中文大字，含 OFL 与来源；用户品牌字体优先。未变更旧项目字体。
+
+## 动作与文字接口
+
+new.py 自动加载 vendor/product-motion.js。运动由绝对时间求值：
+
+```js
+const pose=ProductMotion.track(t,[
+ {at:0,x:1100,y:700,scale:2.4,rx:.5,ry:-.4},
+ {at:.8,x:960,y:700,scale:1.5,ry:.2,ease:'arrive'},
+ {at:2,x:960,y:700,scale:1.5,ry:.2}
+]);
+ProductMotion.type(ctx,t,[.2,.75],'打开，有序。',
+ {x:100,y:250,size:110,maxWidth:1500,color:FILM_META.product.ink});
+```
+
+track 返回 x/y/scale/rx/ry/rz/opacity；角度为场景约定的弧度，缺字段继承前值，时间前后保持端点。到达后一帧的 ease 控制该段：arrive 快起缓停，smooth 两端平滑，linear 匀速。相同相邻姿态形成停留，不累积帧状态；姿态本身不替场景绘制产品或求解机械结构。type 按实测文字宽度缩放字号，在局部遮罩内入场，保留完整文字并恢复上层 alpha/变换。
+
+全片验证既要看关键帧，也要覆盖快速运动与落定后的连续片段。几何可辨、接触遮挡和可读性优先；有限投影与乱序绘制检查不能证明广告效果或真实物理。

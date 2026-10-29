@@ -27,7 +27,7 @@ class FocusTests(unittest.TestCase):
  def test_promotion_is_independent_from_product_style(self):
   f=resolve({'direction':{'content':'product','style':'blueprint','task':'promotion','sound':'none'}})
   self.assertEqual(f['renderer'],'blueprint');self.assertEqual(f['direction']['task'],'promotion')
-  p=plan({},'product','product',None,'promotion');self.assertEqual(p['film']['music']['instrumentTheme'],'product_clean')
-  self.assertEqual(p['film']['direction']['sound'],'product')
+  p=plan({},'product','product',None,'promotion');self.assertEqual(p['film']['music']['instrumentTheme'],'product_pulse')
+  self.assertEqual(p['film']['direction']['sound'],'product_launch')
 
 if __name__=='__main__':unittest.main()

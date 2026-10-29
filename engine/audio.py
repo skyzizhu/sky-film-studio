@@ -102,6 +102,16 @@ def sfx_voice(kind, p=None):
     def tone(f0, dur, dec, h2=0.0):
         t = np.arange(int(dur * SR)) / SR
         return np.sin(2 * np.pi * f0 * t) * np.exp(-t * dec) + h2 * np.sin(2 * np.pi * 2 * f0 * t) * np.exp(-t * dec * 1.4)
+    if kind in ('launch_hit','air_sweep','ui_tick'):
+        duration=float(p if p is not None else (.06 if kind=='ui_tick' else .28))
+        if not np.isfinite(duration)or not .02<=duration<=5:raise ValueError('launch SFX duration must be .02–5s')
+        t=np.arange(int(duration*SR))/SR
+        if kind=='ui_tick':return (np.sin(2*np.pi*1400*t)*np.exp(-t*95)+.1*np.sin(2*np.pi*2100*t)*np.exp(-t*130))*env_ar(len(t),.002,.015)*.35
+        if kind=='launch_hit':
+            phase=2*np.pi*(55*t+2.2*(1-np.exp(-t*30)))
+            return (np.sin(phase)*np.exp(-t*17)+.11*highpass(rng.normal(0,1,len(t)),2600)*np.exp(-t*70))*env_ar(len(t),.003,min(.08,duration/2))*.6
+        noise=bandpass(rng.normal(0,1,len(t)),600,3200)
+        return noise*np.sin(np.linspace(0,np.pi,len(t)))**2*.25
     if kind in ('wood_turn','wood_stop'):
         duration=float(p if p is not None else (.14 if kind=='wood_stop' else .5))
         if not np.isfinite(duration)or not .02<=duration<=5:raise ValueError('wood SFX duration must be .02–5s')
@@ -264,6 +274,7 @@ def ambience(row):
 
 
 THEME_INSTRUMENTS = {
+    "product_pulse": {"lead":lambda f,d:lowpass(_fm_piano(f,d),2800)*env_ar(int(d*SR),.004,min(.1,d/3)),"bass":v_bass,"perc":lambda f,d:v_kick(),"type":"launch-pulse"},
     "product_clean": {"lead":lambda f,d:lowpass(.75*_felt_keys(f,d)+.18*_fm_piano(f,d),2400),"bass":v_bass,"perc":lambda f,d:.15*_chiptune_noise(d),"type":"clean-keys"},
     "archive": {"lead":_nylon_guitar,"bass":_felt_keys,"perc":lambda f,d:_chiptune_noise(d),"type":"restrained-plucked"},
     "museum_soft": {"lead":_felt_keys,"perc":lambda f,d:.15*_chiptune_noise(d),"bass":_felt_keys,"type":"soft-keys"},

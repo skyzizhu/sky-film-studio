@@ -7,7 +7,7 @@ from project import write_json
 def main():
  a=argparse.ArgumentParser();a.add_argument('--project');a.add_argument('--render',action='store_true');args=a.parse_args()
  p=pathlib.Path(args.project).resolve() if args.project else pathlib.Path(tempfile.mkdtemp(prefix='film-product-'))/'film'
- subprocess.run([sys.executable,str(ROOT/'engine/new.py'),str(p),'--style','product','--content','product','--task','promotion'],check=True,capture_output=True)
+ subprocess.run([sys.executable,str(ROOT/'engine/new.py'),str(p),'--style','product','--content','product','--task','promotion','--variant','studio'],check=True,capture_output=True)
  f=json.loads((p/'film.json').read_text());f.update(title='',duration=30,progress=False,decor=False,echo=False,voice={},ending_fade=[29,29.8],beats=[{'id':'a','scene':'a','start':0,'end':9,'sentences':[],'intent':'inspect','energy':.3},{'id':'b','scene':'b','start':9,'end':20,'sentences':[],'intent':'explain','energy':.3,'events':{'open':[1,3.5],'inspect':[4,6]},'sfx_events':[{'event':'open','role':'contact','phase':1,'gain':.045}],'music':{'focus_events':[{'event':'inspect','duck_db':-5}]}},{'id':'c','scene':'c','start':20,'end':30,'sentences':[],'intent':'resolve','energy':.35}])
  write_json(p/'film.json',f);write_json(p/'claims.json',{'reviewed':True,'claims':[{'id':'concept','kind':'example','display_label':'概念产品 · 非在售产品'}]})
  (p/'data.js').write_text('window.DATA={demo:{claimId:"concept",label:"概念产品 · 非在售产品"}};')

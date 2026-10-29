@@ -51,3 +51,11 @@
 - Reveal force arrows before the equation; preserve a result hold instead of adding more simultaneous labels. Event-linked BGM attenuation can make the observation window quieter without moving narration.
 - Product previews use a separate promotion task and product style. Keep conceptual assets labeled; validate real product claims independently. Disable particles explicitly for a quiet studio stage; unknown or absent particle settings keep legacy behavior.
 - Regression: 67 Python tests, product browser/audio checks, old style browser/audio checks, and an unchanged legacy mix hash. These do not establish subjective listening quality or advertising effectiveness.
+
+### Dynamic product launch treatments
+
+- Use deliberate acceleration, scale contrast, masked type and clear holds instead of a long static product layout. Product mechanism state continues across editorial shots; camera changes may be motivated cuts.
+- Inspect occlusion in closed/open/closing poses. In the concept case, inward face winding and painter order exposed internal parts through a closed lid; corrected face orientation, back-face culling and explicit foreground/lid ordering were needed. This is a scene-specific illustration, not a general CAD renderer.
+- Crop macro shots to the feature viewport and keep type outside it; magnifying a lid can hide the feature and reduce text contrast. Move the product toward its next composition before changing the explanation.
+- Reference-study scope matters: official presentation pages and production-team descriptions support design choices; failed video playback does not establish exact original shot timing or sound design.
+- Four treatment profiles passed saved-browser/type/audio checks; a complete precision concept case and the previous studio film provide a viewing comparison. Listener and audience response remain separate from technical checks.

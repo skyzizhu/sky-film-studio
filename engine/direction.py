@@ -29,24 +29,38 @@ def selection(film):
     if not isinstance(d,dict):raise ValueError('direction must be an object')
     c=catalog();style=d.get('style');content=d.get('content','concept')
     if style not in c['styles']:raise ValueError(f'Unknown direction.style: {style}')
-    sound=d.get('sound',c['styles'][style]['sound'])
+    selected_variant=d.get('variant',c['styles'][style].get('default_variant'))
+    if selected_variant is not None and selected_variant not in c['styles'][style].get('variants',{}):raise ValueError(f'Unknown direction.variant for {style}: {selected_variant}')
+    selected_style=profile({'style':style,**({'variant':selected_variant} if selected_variant is not None else {})})
+    sound=d.get('sound',selected_style['sound'])
     if content not in c['contents']:raise ValueError(f'Unknown direction.content: {content}')
     if sound not in c['sounds']:raise ValueError(f'Unknown direction.sound: {sound}')
     selected={'content':content,'style':style,'sound':sound}
+    if selected_variant is not None:selected['variant']=selected_variant
     if 'task' in d:
         if d['task'] not in c['tasks']:raise ValueError(f"Unknown direction.task: {d['task']}")
         selected['task']=d['task']
     return selected
 
 
+def profile(selected):
+    style=copy.deepcopy(catalog()['styles'][selected['style']])
+    variant=selected.get('variant',style.get('default_variant'))
+    if variant is not None:
+        if variant not in style.get('variants',{}):raise ValueError(f"Unknown direction.variant: {variant}")
+        style=merge(style,style['variants'][variant]['overrides'])
+    return style
+
+
 def resolve(film):
     out=copy.deepcopy(film);d=selection(out)
     if d is None:return out
-    style=catalog()['styles'][d['style']];music=copy.deepcopy(style['music']);bpm=music.pop('bpm')
+    style=profile(d);music=copy.deepcopy(style['music']);bpm=music.pop('bpm')
     music['sections']=copy.deepcopy(style['intents'])
     out['direction']=d
     out.setdefault('theme',d['style']);out.setdefault('renderer',d['style']);out.setdefault('bpm',bpm)
     out['music']=merge(music,out.get('music',{}))
+    if 'product' in style:out['product']=merge(style['product'],out.get('product',{}))
     return out
 
 
@@ -68,15 +82,18 @@ def sound_spec(film,spec):
     return None if chosen is None else {**chosen,**spec}
 
 
-def plan(film,content,style,sound,task=None):
+def plan(film,content,style,sound,task=None,variant=None):
     d={'content':content,'style':style}
+    previous=film.get('direction',{})
+    variant=variant if variant is not None else (previous.get('variant') if previous.get('style')==style else None)
+    if variant is not None:d['variant']=variant
     if sound:d['sound']=sound
     task=task if task is not None else film.get('direction',{}).get('task')
     if task is not None:d['task']=task
     proposed=resolve({**film,'direction':d})
     c=catalog();selected=selection(proposed)
     return {'film':proposed,'guidance':{'content':c['contents'][content],
-            'style':c['styles'][style],'sound':c['sounds'][selected['sound']],
+            'style':profile(selected),'sound':c['sounds'][selected['sound']],
             **({'task':c['tasks'][selected['task']]} if 'task' in selected else {})},
             'note':'Defaults fill missing values; existing theme/renderer/BPM/music retained. No scenes or event times generated.'}
 
@@ -127,9 +144,10 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True)
     p.add_argument('--content',default='concept');p.add_argument('--style',required=True);p.add_argument('--sound')
     p.add_argument('--task',choices=list(catalog()['tasks']))
+    p.add_argument('--variant',help='Product: precision, flow, playful, studio')
     p.add_argument('--apply',action='store_true');a=p.parse_args()
     root=pathlib.Path(a.project).resolve();film=json.loads((root/'film.json').read_text(encoding='utf-8'))
-    result=plan(film,a.content,a.style,a.sound,a.task)
+    result=plan(film,a.content,a.style,a.sound,a.task,a.variant)
     from project import write_json
     write_json(root/'checks/direction-plan.json',result)
     if a.apply:write_json(root/'film.json',result['film'])

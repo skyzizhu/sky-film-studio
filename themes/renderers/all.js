@@ -785,8 +785,9 @@
  window.RENDERERS.product={
   bg(ctx,t,W,H){
    ctx.save();
+   const treatment=typeof FILM_META!=='undefined'?FILM_META?.product:null;
    const g=ctx.createLinearGradient(0,0,0,H);
-   g.addColorStop(0,TH.palette.bg1);g.addColorStop(1,TH.palette.bg0);
+   g.addColorStop(0,TH.palette.bg1);g.addColorStop(1,treatment?.background||TH.palette.bg0);
    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
    const glow=ctx.createRadialGradient(W*.48,H*.40,0,W*.48,H*.40,Math.max(W,H)*.58);
    glow.addColorStop(0,'rgba(255,255,255,.48)');glow.addColorStop(1,'rgba(255,255,255,0)');

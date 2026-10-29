@@ -459,10 +459,10 @@
         "发布与功能介绍"
       ],
       "motion": {
-        "reveal": "整体轮廓先建立，停留后再展示局部",
-        "action": "单次操作展示一个收益，产品形态与UI状态保持一致",
-        "camera": "有目的的环视、推进与局部跟随；不绕圈遮住关键功能",
-        "hold": "结果与行动入口留出可读时间"
+        "reveal": "先以局部轮廓建立悬念，再快速拉开完整产品",
+        "action": "快起、减速、落定；操作结果保留观察时间",
+        "camera": "宏观与微距形成尺度对比，沿轮廓或运动方向匹配衔接",
+        "hold": "动作前后有快慢对比，卖点与片尾保留可读停留"
       },
       "materials": [
         "按真实产品参考确定轮廓、材质和接口",
@@ -483,20 +483,20 @@
           "每一镜重新飞入产品"
         ]
       },
-      "sound": "product",
+      "sound": "product_launch",
       "music": {
-        "bpm": 100,
+        "bpm": 120,
         "mode": "major",
-        "instrumentTheme": "product_clean",
-        "leadDensity": 0.25,
-        "layerRamp": 0.75,
+        "instrumentTheme": "product_pulse",
+        "leadDensity": 0.5,
+        "layerRamp": 0.45,
         "layers": {
-          "lead": 0.32,
-          "pad": 0.2,
-          "bass": 0.12,
-          "percussion": 0.04,
-          "snare": 0,
-          "hats": 0,
+          "lead": 0.4,
+          "pad": 0.18,
+          "bass": 0.28,
+          "percussion": 0.2,
+          "snare": 0.045,
+          "hats": 0.07,
           "shimmer": 0
         },
         "motif": [
@@ -504,43 +504,287 @@
             [
               0.5,
               0,
-              0.6
+              0.3
             ],
             [
-              2.75,
+              1.5,
               2,
+              0.3
+            ],
+            [
+              3,
+              1,
               0.45
+            ]
+          ],
+          [
+            [
+              0.5,
+              2,
+              0.25
+            ],
+            [
+              2,
+              1,
+              0.3
+            ],
+            [
+              3.5,
+              0,
+              0.3
             ]
           ],
           [],
           [
             [
-              1,
-              1,
-              0.8
-            ],
-            [
-              3,
+              0,
               0,
               0.5
+            ],
+            [
+              2.5,
+              2,
+              0.6
             ]
-          ],
-          []
+          ]
         ]
       },
       "intents": {
         "inspect": {
-          "lead": 0.12,
-          "percussion": 0
+          "lead": 0.15,
+          "percussion": 0.07,
+          "hats": 0
         },
         "explain": {
-          "lead": 0.22,
-          "percussion": 0
+          "lead": 0.33,
+          "percussion": 0.17
         },
         "resolve": {
-          "lead": 0.35,
-          "pad": 0.24,
-          "percussion": 0.04
+          "lead": 0.4,
+          "pad": 0.23,
+          "percussion": 0.2
+        }
+      },
+      "default_variant": "precision",
+      "variants": {
+        "precision": {
+          "label": "精密发布",
+          "guidance": [
+            "微距与完整轮廓形成尺度对比",
+            "少量大字与准确落定",
+            "配乐重音服务于产品动作"
+          ],
+          "overrides": {
+            "product": {
+              "easing": "arrive",
+              "accent": "#147d85",
+              "secondary": "#d98562",
+              "background": "#f0f2ef",
+              "ink": "#172a2d",
+              "type_weight": 700
+            }
+          }
+        },
+        "flow": {
+          "label": "流动空间",
+          "guidance": [
+            "沿产品轮廓或材质建立匹配转场",
+            "空间层次与连续运动",
+            "功能收益与产品操作可追踪"
+          ],
+          "overrides": {
+            "product": {
+              "easing": "smooth",
+              "accent": "#435fc4",
+              "secondary": "#c391bb",
+              "background": "#e9edf7",
+              "ink": "#172b4b",
+              "type_weight": 600
+            },
+            "music": {
+              "bpm": 116,
+              "layers": {
+                "pad": 0.25,
+                "lead": 0.34,
+                "percussion": 0.15
+              },
+              "motif": [
+                [
+                  [
+                    0.5,
+                    0,
+                    0.6
+                  ],
+                  [
+                    2.5,
+                    2,
+                    0.65
+                  ]
+                ],
+                [
+                  [
+                    1,
+                    1,
+                    0.45
+                  ],
+                  [
+                    3,
+                    0,
+                    0.55
+                  ]
+                ],
+                [],
+                [
+                  [
+                    0.5,
+                    2,
+                    0.8
+                  ]
+                ]
+              ]
+            }
+          }
+        },
+        "playful": {
+          "label": "活力排版",
+          "guidance": [
+            "大胆字形与产品角度共同构图",
+            "色块、遮罩与尺度变化传递卖点",
+            "允许弹性但在停留段恢复清晰"
+          ],
+          "overrides": {
+            "product": {
+              "easing": "arrive",
+              "accent": "#297e5f",
+              "secondary": "#ee987c",
+              "background": "#f5eddb",
+              "ink": "#24392c",
+              "type_weight": 700
+            },
+            "music": {
+              "bpm": 124,
+              "layers": {
+                "lead": 0.43,
+                "pad": 0.13,
+                "percussion": 0.22
+              },
+              "motif": [
+                [
+                  [
+                    0,
+                    0,
+                    0.25
+                  ],
+                  [
+                    1.5,
+                    2,
+                    0.35
+                  ],
+                  [
+                    3,
+                    1,
+                    0.25
+                  ]
+                ],
+                [],
+                [
+                  [
+                    0.5,
+                    1,
+                    0.25
+                  ],
+                  [
+                    2,
+                    2,
+                    0.3
+                  ],
+                  [
+                    3.5,
+                    0,
+                    0.4
+                  ]
+                ]
+              ]
+            }
+          }
+        },
+        "studio": {
+          "label": "安静陈列",
+          "guidance": [
+            "稳定全貌与低速细节检视",
+            "更长的观察段",
+            "低密度配乐与事件接触声"
+          ],
+          "overrides": {
+            "product": {
+              "easing": "smooth",
+              "accent": "#277b88",
+              "secondary": "#a0b7ad",
+              "background": "#edf2f4",
+              "ink": "#20303d",
+              "type_weight": 600
+            },
+            "sound": "product",
+            "music": {
+              "bpm": 100,
+              "mode": "major",
+              "instrumentTheme": "product_clean",
+              "leadDensity": 0.25,
+              "layerRamp": 0.75,
+              "layers": {
+                "lead": 0.32,
+                "pad": 0.2,
+                "bass": 0.12,
+                "percussion": 0.04,
+                "snare": 0,
+                "hats": 0,
+                "shimmer": 0
+              },
+              "motif": [
+                [
+                  [
+                    0.5,
+                    0,
+                    0.6
+                  ],
+                  [
+                    2.75,
+                    2,
+                    0.45
+                  ]
+                ],
+                [],
+                [
+                  [
+                    1,
+                    1,
+                    0.8
+                  ],
+                  [
+                    3,
+                    0,
+                    0.5
+                  ]
+                ],
+                []
+              ]
+            },
+            "intents": {
+              "inspect": {
+                "lead": 0.12,
+                "percussion": 0
+              },
+              "explain": {
+                "lead": 0.22,
+                "percussion": 0
+              },
+              "resolve": {
+                "lead": 0.35,
+                "pad": 0.24,
+                "percussion": 0.04
+              }
+            }
+          }
         }
       }
     }
@@ -655,6 +899,29 @@
           "kind": "trace_air",
           "gain": 0.025,
           "duration": "step"
+        },
+        "erase": null,
+        "transition": null
+      }
+    },
+    "product_launch": {
+      "label": "产品发布节奏",
+      "roles": {
+        "move": null,
+        "contact": {
+          "kind": "felt_contact",
+          "gain": 0.075,
+          "phase": 0.96
+        },
+        "reveal": {
+          "kind": "launch_hit",
+          "gain": 0.11,
+          "duration": 0.28
+        },
+        "draw": {
+          "kind": "ui_tick",
+          "gain": 0.055,
+          "duration": 0.06
         },
         "erase": null,
         "transition": null
