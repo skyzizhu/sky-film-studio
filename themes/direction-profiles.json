@@ -345,6 +345,99 @@
           "pad": 0.2
         }
       }
+    },
+    "archive": {
+      "label": "历史叙事",
+      "tasks": [
+        "史料与年代",
+        "空间接力与事件过程",
+        "机制与限制"
+      ],
+      "motion": {
+        "reveal": "先交代年代与地点，再进入关键物件",
+        "action": "保留主体身份与因果次序，示意和复原分别标识",
+        "camera": "路线、实体、观察者之间有动机地移镜",
+        "hold": "证据和限制留出阅读时间"
+      },
+      "materials": [
+        "根据对象选择木、石、纸与金属",
+        "欧洲历史不默认套用东方水墨符号"
+      ],
+      "effects": {
+        "focus": "evidence-bracket",
+        "trace": "quiet-leader",
+        "optional": [
+          "年代条",
+          "来源注记",
+          "路线/视线示意",
+          "同一物件的远近景"
+        ],
+        "avoid": [
+          "凭空添加仿古印章",
+          "伪造史料扫描件",
+          "用发光脉冲暗示不存在的电传输"
+        ]
+      },
+      "sound": "historical",
+      "music": {
+        "bpm": 80,
+        "mode": "minor",
+        "instrumentTheme": "archive",
+        "leadDensity": 0.25,
+        "layerRamp": 0.8,
+        "layers": {
+          "lead": 0.35,
+          "pad": 0.24,
+          "bass": 0.1,
+          "percussion": 0,
+          "hats": 0,
+          "snare": 0,
+          "shimmer": 0
+        },
+        "motif": [
+          [
+            [
+              0.5,
+              0,
+              0.8
+            ],
+            [
+              2.5,
+              2,
+              1.2
+            ]
+          ],
+          [],
+          [
+            [
+              1,
+              1,
+              0.7
+            ]
+          ],
+          [
+            [
+              2,
+              0,
+              1.4
+            ]
+          ]
+        ]
+      },
+      "intents": {
+        "inspect": {
+          "lead": 0.12,
+          "pad": 0.16
+        },
+        "explain": {
+          "lead": 0.22,
+          "pad": 0.2
+        },
+        "resolve": {
+          "lead": 0.4,
+          "pad": 0.28
+        }
+      }
     }
   },
   "sounds": {
@@ -418,6 +511,25 @@
       "roles": {
         "move": null,
         "contact": null,
+        "reveal": null,
+        "draw": null,
+        "erase": null,
+        "transition": null
+      }
+    },
+    "historical": {
+      "label": "木制机械与安静叙事",
+      "roles": {
+        "move": {
+          "kind": "wood_turn",
+          "gain": 0.085,
+          "duration": "step"
+        },
+        "contact": {
+          "kind": "wood_stop",
+          "gain": 0.1,
+          "phase": 0.96
+        },
         "reveal": null,
         "draw": null,
         "erase": null,

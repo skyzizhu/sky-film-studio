@@ -3,8 +3,8 @@
 window.StyleMotion=(()=>{
  const clamp=x=>Math.max(0,Math.min(1,x)),smooth=x=>x*x*(3-2*x);
  function style(o){
-  const key=o.style||window.FILM_META?.direction?.style||'blueprint';
-  if(!['blueprint','museum','whiteboard'].includes(key))throw Error(`Unknown motion style: ${key}`);
+  const key=o.style||(typeof FILM_META!=='undefined'?FILM_META?.direction?.style:window.FILM_META?.direction?.style)||'blueprint';
+  if(!['blueprint','museum','whiteboard','archive'].includes(key))throw Error(`Unknown motion style: ${key}`);
   return key;
  }
  function phase(t,event){
@@ -62,7 +62,7 @@ window.StyleMotion=(()=>{
    for(const [xx,yy,sx,sy] of [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]]){
     ctx.moveTo(xx+sx*d,yy);ctx.lineTo(xx,yy);ctx.lineTo(xx,yy+sy*d);
    }
-  }else if(key==='museum'){
+  }else if(key==='museum'||key==='archive'){
    ctx.moveTo(x+w*.5,y+h);ctx.lineTo(x+w*.5,y+h+15);ctx.lineTo(x+w*.85,y+h+15);
    ctx.moveTo(x+w*.5+3,y+h);ctx.arc(x+w*.5,y+h,3,0,Math.PI*2);
   }else{

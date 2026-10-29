@@ -102,6 +102,13 @@ def sfx_voice(kind, p=None):
     def tone(f0, dur, dec, h2=0.0):
         t = np.arange(int(dur * SR)) / SR
         return np.sin(2 * np.pi * f0 * t) * np.exp(-t * dec) + h2 * np.sin(2 * np.pi * 2 * f0 * t) * np.exp(-t * dec * 1.4)
+    if kind in ('wood_turn','wood_stop'):
+        duration=float(p if p is not None else (.14 if kind=='wood_stop' else .5))
+        if not np.isfinite(duration)or not .02<=duration<=5:raise ValueError('wood SFX duration must be .02–5s')
+        t=np.arange(int(duration*SR))/SR
+        if kind=='wood_stop':return tone(175,duration,38,.2)*env_ar(len(t),.003,.04)*.38
+        grain=bandpass(rng.normal(0,1,len(t)),140,950)
+        return (grain*.32+np.sin(2*np.pi*92*t)*.045)*env_ar(len(t),.08,min(.15,duration/2))
     if kind in ('servo','metal_contact','felt_contact','marker_draw','board_erase','trace_air'):
         duration=float(p if p is not None else (.12 if kind.endswith('contact') else .4))
         if not np.isfinite(duration) or not .02<=duration<=5:raise ValueError('style SFX duration must be .02–5s')
@@ -248,7 +255,16 @@ def _felt_keys(f,dur):
     t=np.arange(int(dur*SR))/SR
     return (np.sin(2*np.pi*f*t)*np.exp(-t*5)+.14*np.sin(2*np.pi*2*f*t)*np.exp(-t*12))*(1-np.exp(-t*90))*.55
 
+def ambience(row):
+    """One seeded bed; no beat-local restart and no consumption of music RNG."""
+    duration=row['end']-row['start'];n=int(duration*SR);t=np.arange(n)/SR
+    local=np.random.default_rng(row.get('seed',1));x=bandpass(local.normal(0,1,n),90,1200)
+    x*=.18*(.72+.2*np.sin(2*np.pi*.13*t)+.08*np.sin(2*np.pi*.37*t))
+    return x*env_ar(n,row.get('fade_in',1),row.get('fade_out',1))
+
+
 THEME_INSTRUMENTS = {
+    "archive": {"lead":_nylon_guitar,"bass":_felt_keys,"perc":lambda f,d:_chiptune_noise(d),"type":"restrained-plucked"},
     "museum_soft": {"lead":_felt_keys,"perc":lambda f,d:.15*_chiptune_noise(d),"bass":_felt_keys,"type":"soft-keys"},
     "blueprint": {"lead": _fm_piano, "perc": lambda f, d=0.05: _chiptune_noise(d), "bass": _fm_piano, "type": "lofi"},
     "museum": {"lead": _guzheng, "perc": _taiko, "bass": v_bass, "type": "organic"},
@@ -305,7 +321,8 @@ def build(project):
     if cues_file and not (proj/cues_file).is_file():
         raise SystemExit(f"缺 cues: {cues_file}")
     initial_cues = json.loads((proj/cues_file).read_text()) if cues_file else None
-    errors = timeline_errors(film, initial_cues)
+    from project import soundscape_errors
+    errors = timeline_errors(film, initial_cues)+soundscape_errors(film)
     if errors: raise SystemExit("; ".join(errors))
     if initial_cues and film.get("ending_fade",[film["duration"]])[0] < max(s["end"] for s in initial_cues["sentences"]):
         raise SystemExit("ending_fade 会截断口播；请延长片尾")
@@ -389,6 +406,10 @@ def build(project):
         if bi > 0 and (bi % 8 == 0 or en > 0.85):
             music_place('shimmer',v_shimmer(.3+en*.2),t0)
 
+    ambience_log=[]
+    for row in film.get('soundscape',[]):
+        place(sfx,ambience(row),row['start'],row.get('gain',.05))
+        ambience_log.append({**row,'duration':row['end']-row['start'],'origin':'synthesized; not a historical recording'})
     sound_log=[]
     for b in beats:
         for ev in sound_events(b,film):
@@ -471,7 +492,7 @@ def build(project):
     write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
     from project import write_json
-    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'layer_ramp_seconds':ramp,'motif':motif,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
+    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'soundscape':ambience_log,'layer_ramp_seconds':ramp,'motif':motif,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
     mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")

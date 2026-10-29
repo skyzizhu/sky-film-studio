@@ -242,3 +242,26 @@ def transition_keys(film):
         offsets=(-duration/2,-duration/4,-1/fps,0,duration/4,duration/2) if cfg['type']=='fade' else (-1/fps,0,duration/2,duration)
         result.update(round(at+d,5) for d in offsets if 0<=at+d<film['duration'])
     return sorted(result)
+
+
+def soundscape_errors(film):
+    """Validate optional absolute-time ambience, independent of beat boundaries."""
+    rows=film.get('soundscape',[])
+    if not isinstance(rows,list):return ['soundscape must be a list']
+    errors=[];ids=set();duration=film.get('duration',0)
+    for row in rows:
+        if not isinstance(row,dict):errors.append('soundscape entry must be an object');continue
+        bid=row.get('id');a=row.get('start');b=row.get('end')
+        if not isinstance(bid,str) or not bid or bid in ids:errors.append('soundscape id missing/duplicate')
+        else:ids.add(bid)
+        if row.get('kind')!='wind':errors.append('Unsupported soundscape kind')
+        if not (number(a)and number(b)and number(duration)and 0<=a<b<=duration):
+            errors.append('soundscape must remain inside film');continue
+        gain=row.get('gain',.05)
+        if not number(gain)or not 0<=gain<=.3:errors.append('soundscape gain must be 0–0.3')
+        for key in ['fade_in','fade_out']:
+            value=row.get(key,1)
+            if not number(value)or not .02<=value<=b-a:errors.append('soundscape fades must be .02–bed duration')
+        seed=row.get('seed',1)
+        if not isinstance(seed,int)or isinstance(seed,bool)or not 0<=seed<2**32:errors.append('Invalid soundscape seed')
+    return errors

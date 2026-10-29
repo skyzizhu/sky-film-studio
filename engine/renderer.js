@@ -94,6 +94,7 @@ const THEME_RENDERER_MAP = {
   // v7 新主题：用专属渲染引擎
   "blueprint": "blueprint",
   "museum": "museum",
+  "archive": "archive",
   "ink": "ink",
   "pixel": "pixel",
   "glitch": "glitch",

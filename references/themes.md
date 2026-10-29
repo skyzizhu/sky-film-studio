@@ -72,10 +72,12 @@ tech: {
 python3 - <<'PY'
 from pathlib import Path
 p=Path('themes/renderers')
-(p/'all.js').write_text('// Generated from renderer sources; rebuild after edits.\n'+'\n'.join((p/(n+'.js')).read_text() for n in ['ink','pixel','glitch','whiteboard','screencast','blueprint','museum']))
+(p/'all.js').write_text('// Generated from renderer sources; rebuild after edits.\n'+'\n'.join((p/(n+'.js')).read_text() for n in ['ink','pixel','glitch','whiteboard','screencast','blueprint','museum','archive']))
 PY
 ```
 
 显式 renderer 拼写未知会报错；`renderer:"default"` 可使用基础管线。宣纸/白板缓存按目标宽高更新。
 
 内容、表现语法、声音的独立组合及三套深化风格见 [direction.md](direction.md)。新增三风格项目的实际配乐以direction档案与film.json覆盖为准；旧片不自动迁移。
+
+archive：暖色档案底与稳定细边框，稀疏小调拨弦、默认无鼓。年代条、来源注记、路线与视线由场景按内容安排；历史叙事详见 [history.md](history.md)。使用 --style archive --content history 创建。
