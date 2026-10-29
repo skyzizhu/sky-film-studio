@@ -69,7 +69,7 @@ class DirectionTests(unittest.TestCase):
    for b in arrays[i+1:]:self.assertFalse(np.array_equal(a,b))
  def test_new_project_snapshots_resolve_without_repository(self):
   with tempfile.TemporaryDirectory() as directory:
-   for style in ['blueprint','museum','whiteboard']:
+   for style in ['blueprint','museum','whiteboard','product']:
     p=pathlib.Path(directory)/style
     subprocess.run([sys.executable,str(ROOT/'engine/new.py'),str(p),'--content','history','--style',style,'--task','mechanism'],check=True,capture_output=True)
     f=json.loads((p/'film.json').read_text());self.assertEqual(f['direction']['content'],'history')

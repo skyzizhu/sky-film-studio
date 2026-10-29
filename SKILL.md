@@ -1,11 +1,11 @@
 ---
 name: sky-film-studio
-description: "Create and revise 30s–5min explainer films from a topic, script or recording using deterministic Canvas animation, sourced facts, sentence-timed narration/subtitles and synthesized music. 用于知识解说短片及其分镜、实体动画与成片修改；不用于单张配图或一般网页开发。"
+description: "Create and revise 30s–5min explainer and product showcase films from a topic, script or recording using deterministic Canvas animation, sourced facts, sentence-timed narration/subtitles and synthesized music. 用于知识解说、产品宣传短片及其分镜、实体动画与成片修改；不用于单张配图或一般网页开发。"
 ---
 
 # sky-film-studio
 
-把主题、文稿或录音做成可直接观看的解说短片。画面是确定性的 `window.draw(t)`；Playwright 导帧，ffmpeg 编码。每片独立项目，vendor 和 Python 构建脚本随项目快照；不要为单片修改全局引擎。
+把主题、文稿或录音做成可直接观看的解说或产品展示短片。画面是确定性的 `window.draw(t)`；Playwright 导帧，ffmpeg 编码。每片独立项目，vendor 和 Python 构建脚本随项目快照；不要为单片修改全局引擎。
 
 ## 必须保持的约束
 
@@ -38,6 +38,8 @@ description: "Create and revise 30s–5min explainer films from a topic, script 
 7. **交付与经验**：源码包含 vendor、engine、requirements、字体/素材及来源、分镜文稿、音轨与检查记录；不要打包凭证、缓存、巨量 frames。新经验先记项目内，维护技能时再筛选合并到 [experience.md](references/experience.md)。
 
 ## 表达选择
+
+产品宣传使用独立的 `promotion` 任务和可选 `product` 展示风格；真实产品参考、卖点证据、概念素材与行动入口读 [product.md](references/product.md)。
 
 - 通用概念用清晰图标；具体实物可用参数化矢量、SVG、参考图片或必要的 3D。真实人物、历史遗物、指定产品应核验关键形态，虚构示意不可冒充真实记录。
 - 先保证轮廓和关键部件可辨，再加材质、光影、描线或抖动。入场动画与物体动作分开：出现、抓取/转动/流转、停留、退出。跨镜头复用实体身份。

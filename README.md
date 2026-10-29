@@ -189,3 +189,5 @@ examples/wxminipro/    已交付 60s 参考片源码（微信小程序从0到上
 可选本地词时码与关键动作绑定、事件同源音效和内容局部镜头框景已接入；完整音轨的自动转录/源波形检查与真人试听状态分开记录。ASR依赖独立于核心渲染，见 [voice.md](references/voice.md)。
 
 讲解任务可独立于题材配置：`--content science --style blueprint --sound none --task mechanism`；操作流程可用`--content tutorial --style museum --task procedure`。task提供叙事与证据建议，不自动改场景或音乐；逐拍evidence可检查事件引用，内容效果仍需复查。见 [主题与讲解任务](references/narrative.md)。
+
+Product showcase: `--content product --task promotion --style product`. See [product films](references/product.md) for real assets, claim evidence and concept-preview boundaries. Optional event-linked BGM focus windows are documented in [direction](references/direction.md).

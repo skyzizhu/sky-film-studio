@@ -4,7 +4,7 @@ window.StyleMotion=(()=>{
  const clamp=x=>Math.max(0,Math.min(1,x)),smooth=x=>x*x*(3-2*x);
  function style(o){
   const key=o.style||(typeof FILM_META!=='undefined'?FILM_META?.direction?.style:window.FILM_META?.direction?.style)||'blueprint';
-  if(!['blueprint','museum','whiteboard','archive'].includes(key))throw Error(`Unknown motion style: ${key}`);
+  if(!['blueprint','museum','whiteboard','archive','product'].includes(key))throw Error(`Unknown motion style: ${key}`);
   return key;
  }
  function phase(t,event){
@@ -65,6 +65,8 @@ window.StyleMotion=(()=>{
   }else if(key==='museum'||key==='archive'){
    ctx.moveTo(x+w*.5,y+h);ctx.lineTo(x+w*.5,y+h+15);ctx.lineTo(x+w*.85,y+h+15);
    ctx.moveTo(x+w*.5+3,y+h);ctx.arc(x+w*.5,y+h,3,0,Math.PI*2);
+  }else if(key==='product'){
+   ctx.moveTo(x+w*.15,y+h+10);ctx.lineTo(x+w*.85,y+h+10);
   }else{
    ctx.lineWidth=o.width??4;ctx.lineCap='round';ctx.moveTo(x,y+h+7);ctx.quadraticCurveTo(x+w*.45,y+h+11,x+w,y+h+5);
   }

@@ -84,6 +84,18 @@
         "示例可追踪",
         "伪代码与真实执行区分"
       ]
+    },
+    "product": {
+      "structure": [
+        "目标用户与场景",
+        "核心利益",
+        "产品操作与证据",
+        "适用条件与行动入口"
+      ],
+      "evidence": [
+        "真实产品形态、界面与能力有依据",
+        "概念动效、模拟界面与实测结果分别标识"
+      ]
     }
   },
   "styles": {
@@ -438,6 +450,99 @@
           "pad": 0.28
         }
       }
+    },
+    "product": {
+      "label": "产品展示",
+      "tasks": [
+        "实体产品展示",
+        "软件功能宣传",
+        "发布与功能介绍"
+      ],
+      "motion": {
+        "reveal": "整体轮廓先建立，停留后再展示局部",
+        "action": "单次操作展示一个收益，产品形态与UI状态保持一致",
+        "camera": "有目的的环视、推进与局部跟随；不绕圈遮住关键功能",
+        "hold": "结果与行动入口留出可读时间"
+      },
+      "materials": [
+        "按真实产品参考确定轮廓、材质和接口",
+        "概念产品明确标识；柔和布光和接触阴影不冒充真实照片"
+      ],
+      "effects": {
+        "focus": "quiet-underline",
+        "trace": "quiet-dot",
+        "optional": [
+          "局部表面扫光",
+          "轮廓匹配转场",
+          "产品与结果同屏",
+          "品牌色点缀"
+        ],
+        "avoid": [
+          "扫光覆盖文字或接口",
+          "虚构性能数据和认证徽章",
+          "每一镜重新飞入产品"
+        ]
+      },
+      "sound": "product",
+      "music": {
+        "bpm": 100,
+        "mode": "major",
+        "instrumentTheme": "product_clean",
+        "leadDensity": 0.25,
+        "layerRamp": 0.75,
+        "layers": {
+          "lead": 0.32,
+          "pad": 0.2,
+          "bass": 0.12,
+          "percussion": 0.04,
+          "snare": 0,
+          "hats": 0,
+          "shimmer": 0
+        },
+        "motif": [
+          [
+            [
+              0.5,
+              0,
+              0.6
+            ],
+            [
+              2.75,
+              2,
+              0.45
+            ]
+          ],
+          [],
+          [
+            [
+              1,
+              1,
+              0.8
+            ],
+            [
+              3,
+              0,
+              0.5
+            ]
+          ],
+          []
+        ]
+      },
+      "intents": {
+        "inspect": {
+          "lead": 0.12,
+          "percussion": 0
+        },
+        "explain": {
+          "lead": 0.22,
+          "percussion": 0
+        },
+        "resolve": {
+          "lead": 0.35,
+          "pad": 0.24,
+          "percussion": 0.04
+        }
+      }
     }
   },
   "sounds": {
@@ -535,6 +640,25 @@
         "erase": null,
         "transition": null
       }
+    },
+    "product": {
+      "label": "克制的产品操作声",
+      "roles": {
+        "move": null,
+        "contact": {
+          "kind": "felt_contact",
+          "gain": 0.07,
+          "phase": 1
+        },
+        "reveal": null,
+        "draw": {
+          "kind": "trace_air",
+          "gain": 0.025,
+          "duration": "step"
+        },
+        "erase": null,
+        "transition": null
+      }
     }
   },
   "tasks": {
@@ -597,6 +721,22 @@
       ],
       "transition": "用时空线索交代切换，同一地点或物件保留参照",
       "sound": "不把合成重现称为现场录音，避免音效制造未经证实的戏剧因果"
+    },
+    "promotion": {
+      "label": "产品宣传",
+      "structure": [
+        "建立使用情境或核心利益",
+        "展示产品与一个关键操作",
+        "给出可核验的结果",
+        "品牌与行动入口停留"
+      ],
+      "evidence": [
+        "卖点对应可见操作与依据",
+        "性能比较口径与测试条件明确",
+        "不补造品牌、价格、认证或真实用户评价"
+      ],
+      "transition": "沿产品轮廓、部件或操作结果衔接，保持品牌与产品身份；英雄镜头不强制每拍重入场",
+      "sound": "跟随操作和材质，品牌收束可用用户提供的声音标识；避免默认重击、每镜头whoosh"
     }
   }
 }

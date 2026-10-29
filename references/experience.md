@@ -44,3 +44,10 @@
 - 教程中的完成反馈由对象状态推导：未装的钥匙留在桌面，补装后才勾选；片尾合包不能掩盖未完成步骤。
 - 视觉语法与色板可独立组合。陈列式物件不必使用深色底；生活台面案例改浅底后复查标题、字幕、轮廓和接触阴影。不能把某风格的文字颜色直接移到另一色板。
 - 两个35秒案例分别采样71个时刻并逆序重绘，检查绳端约束/物件守恒与切点主体稳定；这些技术检查不等于人工听感或观众理解测试。
+
+### Result holds and product previews
+
+- Separate physical placement from checklist confirmation. Use the same carried-object pose for fingertips and elevation-aware contact shadows; let the hand release before the next operation.
+- Reveal force arrows before the equation; preserve a result hold instead of adding more simultaneous labels. Event-linked BGM attenuation can make the observation window quieter without moving narration.
+- Product previews use a separate promotion task and product style. Keep conceptual assets labeled; validate real product claims independently. Disable particles explicitly for a quiet studio stage; unknown or absent particle settings keep legacy behavior.
+- Regression: 67 Python tests, product browser/audio checks, old style browser/audio checks, and an unchanged legacy mix hash. These do not establish subjective listening quality or advertising effectiveness.

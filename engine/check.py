@@ -30,7 +30,7 @@ def probe(path):
 
 def preflight(project, strict=False):
     project, film, cues = load(project)
-    from direction import resolve, evidence_errors
+    from direction import resolve, evidence_errors, music_focus
     try:film=resolve(film)
     except (ValueError,TypeError) as error:
         print('✗',error);return False
@@ -39,6 +39,8 @@ def preflight(project, strict=False):
         from project import _extra_dependencies
         for stage in ('frames','audio','video','checks'):_extra_dependencies(project,film,stage)
     except ValueError as error:errors.append(str(error))
+    try: music_focus(film)
+    except (ValueError,TypeError,KeyError) as error:errors.append(str(error))
     try: policy(film)
     except ValueError as error:errors.append(str(error))
     for beat in film.get('beats',[]):

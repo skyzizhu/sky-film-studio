@@ -264,6 +264,7 @@ def ambience(row):
 
 
 THEME_INSTRUMENTS = {
+    "product_clean": {"lead":lambda f,d:lowpass(.75*_felt_keys(f,d)+.18*_fm_piano(f,d),2400),"bass":v_bass,"perc":lambda f,d:.15*_chiptune_noise(d),"type":"clean-keys"},
     "archive": {"lead":_nylon_guitar,"bass":_felt_keys,"perc":lambda f,d:_chiptune_noise(d),"type":"restrained-plucked"},
     "museum_soft": {"lead":_felt_keys,"perc":lambda f,d:.15*_chiptune_noise(d),"bass":_felt_keys,"type":"soft-keys"},
     "blueprint": {"lead": _fm_piano, "perc": lambda f, d=0.05: _chiptune_noise(d), "bass": _fm_piano, "type": "lofi"},
@@ -310,13 +311,27 @@ def validate_motif(motif):
                 raise ValueError('Invalid motif note')
             previous=at
 
+def focus_envelope(n,rows,sample_rate=SR):
+    """Overlaps choose deepest gain, with smooth boundaries and clipped time edges."""
+    env=np.ones(n)
+    for row in rows:
+        gain=10**(row['duck_db']/20);a,b=row['start'],row['end']
+        for start,end,g0,g1 in [(a-row['attack'],a,1,gain),(a,b,gain,gain),(b,b+row['release'],gain,1)]:
+            i0,i1=max(0,int(np.ceil(start*sample_rate))),min(n,int(np.ceil(end*sample_rate)))
+            if i1<=i0:continue
+            u=np.clip((np.arange(i0,i1)/sample_rate-start)/(end-start),0,1);u=u*u*(3-2*u)
+            env[i0:i1]=np.minimum(env[i0:i1],g0+(g1-g0)*u)
+    return env
+
+
 def build(project):
     global rng
     rng = np.random.default_rng(20260901)
     proj = pathlib.Path(project).resolve()
     film = json.loads((proj / "film.json").read_text(encoding="utf-8"))
-    from direction import resolve, section_layers
+    from direction import resolve, section_layers, music_focus
     film=resolve(film)
+    focus_rows=music_focus(film)
     cues_file = film.get("voice", {}).get("cues")
     if cues_file and not (proj/cues_file).is_file():
         raise SystemExit(f"缺 cues: {cues_file}")
@@ -466,6 +481,8 @@ def build(project):
         bgm *= env
         sfx *= (1 + env) / 2
 
+    if focus_rows:bgm *= focus_envelope(N,focus_rows)
+
     def master(x):
         x = x[:, :int(dur * SR)].copy()
         n_in = int(0.4 * SR)
@@ -494,7 +511,7 @@ def build(project):
     write_wav(proj / "audio" / "voice.wav", voice[:, :int(dur*SR)])
     write_wav(proj / "audio" / "mix.wav", mix)
     from project import write_json
-    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'soundscape':ambience_log,'layer_ramp_seconds':ramp,'motif':motif,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
+    write_json(proj/'checks/arrangement.json',{'direction':film.get('direction'),'instrument_theme':music.get('instrumentTheme',film.get('theme')),'sounds':sound_log,'soundscape':ambience_log,'music_focus':focus_rows,'layer_ramp_seconds':ramp,'motif':motif,'bars':arrangement_log,'note':'实际编曲层配置；零增益层不发声'})
     mark_build(proj, "audio", duration=dur)
     print(f"✓ audio/mix.wav  {dur:.1f}s  bars={bars}@{bpm}BPM  speech={len(speech)}段 duck={duck_db}dB")
     print(f"  rms={np.sqrt((mix**2).mean()):.3f} peak={np.abs(mix).max():.3f}")

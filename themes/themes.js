@@ -96,3 +96,9 @@ for (const [key,base,palette,bpm,mode] of [
  THEMES[key]={...src,key,bpm,palette:{...src.palette,...palette},
   music:{mode,brightness:.4,arpDensity:.5},grain:0,vignette:0,lightBand:0,decor:{}};
 }
+
+// Product studio palette; the renderer uses a quiet light stage, without grid/dust.
+THEMES.product={...THEMES.whiteboard,key:'product',bpm:100,
+ palette:{...THEMES.whiteboard.palette,bg0:'#e9eef1',bg1:'#fafcfd',ink:'#dce4e9',cream:'#20303d',creamDim:'#627381',accent:'#277b88',accentHi:'#4aa4af',accentDeep:'#205563'},
+ fonts:{serif:'Noto Serif SC',titleWeight:600},music:{mode:'major',brightness:.5,arpDensity:.5},
+ particles:false,grain:0,vignette:0,lightBand:0,decor:{}};

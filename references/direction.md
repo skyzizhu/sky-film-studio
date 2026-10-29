@@ -1,6 +1,6 @@
 # 内容 × 表现风格 × 声音
 
-已深化 `blueprint / museum / whiteboard / archive`，其余主题继续使用原接口。内容类型负责叙事与证据，风格负责视觉语法，声音档案负责动作发声；palette仍由theme选择。配置的默认建议不能证明镜头适合内容，最终仍需看动作、听声音并核对来源。
+已深化 `blueprint / museum / whiteboard / archive / product`，其余主题继续使用原接口。内容类型负责叙事与证据，风格负责视觉语法，声音档案负责动作发声；palette仍由theme选择。配置的默认建议不能证明镜头适合内容，最终仍需看动作、听声音并核对来源。
 
 主题之外可配置独立讲解任务direction.task，逐拍证据和跨主题验证见 [narrative.md](narrative.md)。
 
@@ -105,3 +105,16 @@ archive 档案与 history 内容独立组合；暖色档案底、来源注记、
 ## 动作声的画面位置
 
 语义音效事件支持pan（-1左至1右，默认0）与显式gain。持续动作仍由同一事件窗驱动；可按镜头近景/远景调整增益和左右位置，不能只按主题机械地左右摇摆。底层兼容sfx数组的第五项pan；需要默认时长时第四项可为null。编曲日志记录实际pan。它只是立体声位置和音量示意，不是物理声场或历史录音复原。
+
+## 产品展示与观察留白
+
+product 风格、promotion 任务和产品证据要求见 [product.md](product.md)。默认 product_clean 音色、稀疏乐句、安静背景与无自动转场声；不绑定具体品牌色。
+
+逐拍可添加 BGM 关注区间：
+
+```json
+{"events":{"result":[3,4.5]},
+ "music":{"focus_events":[{"event":"result","duck_db":-5,"attack":0.3,"hold":0.25,"release":0.8}]}}
+```
+
+事件使用本拍局部时间。duck_db 为 -24 至 0；attack/release 为 0.02–3 秒，hold 为 0–3 秒。事件起点到终点加 hold 期间衰减，前后平滑降低/恢复 BGM；片外部分不输出。重叠取最深衰减，不叠乘；不修改人声与 SFX，和口播闪避独立相乘。未配置时保留旧混音。编曲日志 music_focus 记录实际绝对时间，无需为了留白移动口播或添加提示音。

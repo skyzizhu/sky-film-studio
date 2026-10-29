@@ -95,6 +95,7 @@ const THEME_RENDERER_MAP = {
   "blueprint": "blueprint",
   "museum": "museum",
   "archive": "archive",
+  "product": "product",
   "ink": "ink",
   "pixel": "pixel",
   "glitch": "glitch",

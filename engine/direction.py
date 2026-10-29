@@ -100,6 +100,29 @@ def evidence_errors(film):
     return errors
 
 
+def music_focus(film):
+    """Opt-in BGM attenuation linked to visible events; never alters voice/SFX."""
+    import math
+    def num(x):return isinstance(x,(int,float)) and not isinstance(x,bool) and math.isfinite(x)
+    rows=[]
+    for beat in film.get('beats',[]):
+        music=beat.get('music',{})
+        if not isinstance(music,dict):raise ValueError('beat.music must be an object')
+        controls=music.get('focus_events',[])
+        if not isinstance(controls,list):raise ValueError('music.focus_events must be a list')
+        for spec in controls:
+            if not isinstance(spec,dict):raise ValueError('music focus must be an object')
+            name=spec.get('event');events=beat.get('events',{})
+            event=events.get(name) if isinstance(events,dict) and isinstance(name,str) else None
+            if not isinstance(event,list) or len(event)!=2 or not all(num(x) for x in event) or not 0<=event[0]<event[1]<=beat['end']-beat['start']:
+                raise ValueError('music focus must reference a valid local event')
+            db=spec.get('duck_db',-5);attack=spec.get('attack',.25);release=spec.get('release',.65);hold=spec.get('hold',.3)
+            if not all(num(x) for x in (db,attack,release,hold)) or not -24<=db<=0 or not .02<=attack<=3 or not .02<=release<=3 or not 0<=hold<=3:
+                raise ValueError('music focus: duck_db -24..0, attack/release .02..3, hold 0..3')
+            rows.append({'beat':beat['id'],'event':name,'start':beat['start']+event[0],'end':min(film['duration'],beat['start']+event[1]+hold),'duck_db':db,'attack':attack,'release':release})
+    return rows
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--project',required=True)
     p.add_argument('--content',default='concept');p.add_argument('--style',required=True);p.add_argument('--sound')

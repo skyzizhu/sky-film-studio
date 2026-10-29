@@ -167,6 +167,7 @@ const DUST = (() => {
   return arr;
 })();
 function drawDust(ctx, t, opts = {}) {
+  if (TH.particles === false) return;
   const p = PAL(), style = TH.particles || "dust";
   const drift = opts.drift || 0;
   ctx.save();
