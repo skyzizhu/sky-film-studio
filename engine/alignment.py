@@ -22,8 +22,8 @@ def model_at(path):
     return WhisperModel(str(path),device='cpu',compute_type='int8',cpu_threads=4,local_files_only=True)
 
 
-def recognize(model,path,vocabulary=None):
-    segments,_=model.transcribe(str(path),language='zh',word_timestamps=True,beam_size=5,
+def recognize(model,path,vocabulary=None,*,word_timestamps=True):
+    segments,_=model.transcribe(str(path),language='zh',word_timestamps=word_timestamps,beam_size=5,
                                vad_filter=False,condition_on_previous_text=False,temperature=0,
                                initial_prompt=('简体中文。专有词：'+ '、'.join(vocabulary)) if vocabulary else None)
     rows=list(segments)
@@ -131,7 +131,10 @@ def track_coverage(project,video,cues):
 
 def audit(project,video,model_path):
     project=pathlib.Path(project).resolve();film=json.loads((project/'film.json').read_text())
-    cues=json.loads((project/film['voice']['cues']).read_text());result=recognize(model_at(model_path),video,film.get('voice',{}).get('asr_vocabulary'))
+    cues=json.loads((project/film['voice']['cues']).read_text())
+    # Full-track text review does not need the fragile per-word alignment pass.
+    # Sentence proposals retain word timestamps for semantic event binding.
+    result=recognize(model_at(model_path),video,film.get('voice',{}).get('asr_vocabulary'),word_timestamps=False)
     expected=''.join(s['text'] for s in cues['sentences']);a,b=normalized(expected),normalized(result['text'])
     matcher=difflib.SequenceMatcher(None,a,b,autojunk=False)
     edits=[{'kind':tag,'expected':a[i:j],'recognized':b[k:l]}for tag,i,j,k,l in matcher.get_opcodes()if tag!='equal']

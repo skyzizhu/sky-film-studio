@@ -39,6 +39,18 @@ class SharedSoundTests(unittest.TestCase):
   with self.assertRaises(ValueError):sound_events(b)
 
 class TrackCoverageTests(unittest.TestCase):
+ def test_text_audit_skips_word_alignment_but_proposals_keep_it(self):
+  from alignment import recognize
+  from types import SimpleNamespace
+  class Model:
+   def __init__(self):self.requests=[]
+   def transcribe(self,path,**kwargs):
+    self.requests.append(kwargs['word_timestamps'])
+    return iter([SimpleNamespace(text='信号',words=None)]),None
+  m=Model()
+  self.assertEqual(recognize(m,'film.mp4',word_timestamps=False),{'text':'信号','words':[]})
+  recognize(m,'sentence.wav')
+  self.assertEqual(m.requests,[False,True])
  def test_full_source_audio_presence_and_delay(self):
   import numpy as np
   from alignment import source_match

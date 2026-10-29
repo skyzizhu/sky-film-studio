@@ -71,4 +71,6 @@ python engine/alignment.py audit --project "$FILM" --model /absolute/local/model
 
 最终audit读取完整音轨，记录全文识别差异，并匹配各句源波形以检查漏句和偏移；匹配不判断发音、人名或主观听感。`checks/audio-review.json` 保留最终视频散列和 `human_listening:pending`，不能把自动转录改写为真人完整试听。人名、同音字和繁简字差异应列出供复核。
 
+全文audit不请求词时间戳，避免为文字复核额外执行词级对齐；逐句transcribe仍保留词时间估计供事件绑定。两者用途不同，不把全文识别结果当成动作锚点。
+
 本地ASR接口依据：[faster-whisper](https://github.com/SYSTRAN/faster-whisper)。
