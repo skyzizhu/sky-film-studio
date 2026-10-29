@@ -135,49 +135,167 @@ def file_hash(path):
     return digest.hexdigest()
 
 
-def build_fingerprint(project, kind):
-    project = pathlib.Path(project).resolve()
-    # Conservative dependency set: fonts, assets, configuration and source audio.
-    paths = []
-    for path in project.rglob('*'):
-        if not path.is_file(): continue
-        rel = path.relative_to(project)
-        if '__pycache__' in rel.parts or path.suffix in ('.pyc','.mp4','.zip'): continue
-        if rel.parts[0] in ('frames', 'checks', 'out', '.git', '.cache', 'build'):
-            continue
-        if rel.parts[0] == 'audio' and path.name in ('mix.wav', 'voice.wav', 'bgm.wav', 'sfx.wav'):
-            continue
-        paths.append(path)
-    digest = hashlib.sha256(kind.encode())
-    for path in sorted(paths):
-        digest.update(str(path.relative_to(project)).encode())
-        digest.update(file_hash(path).encode())
-    # Original-skill invocations also account for the helpers used to build.
-    for path in sorted(pathlib.Path(__file__).parent.glob('*.py')):
-        digest.update(path.name.encode()); digest.update(file_hash(path).encode())
-    for path in (pathlib.Path(__file__).parent/"direction-profiles.json", pathlib.Path(__file__).parent.parent/"themes/direction-profiles.json"):
-        if path.is_file():digest.update(file_hash(path).encode())
+BUILD_SCHEMA = 2
+_STAGE_SCRIPTS = {
+    'frames': ('render.py','project.py'),
+    'audio': ('audio.py','project.py','direction.py'),
+    'video': ('encode.py','audio_metrics.py','project.py'),
+    'checks': ('check.py','audio_metrics.py','alignment.py','direction.py','project.py'),
+}
+_AUDIO_ONLY = {'music','soundscape','audio_master','subtitles_max_cps'}
+_BEAT_AUDIO = {'sfx','sfx_events','music','intent','energy','event_anchors','sentences','note'}
+
+
+def _canonical(value):
+    return json.dumps(value,sort_keys=True,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode()
+
+
+def _extra_dependencies(project,film,kind):
+    config=film.get('build_dependencies',{})
+    if not isinstance(config,dict):raise ValueError('build_dependencies must be an object')
+    if set(config)-set(_STAGE_SCRIPTS):raise ValueError('Unknown build_dependencies stage')
+    spec=config.get(kind,{})
+    if not isinstance(spec,dict):raise ValueError('build_dependencies stage must be an object')
+    paths=[]
+    if not isinstance(spec.get('paths',[]),list) or not isinstance(spec.get('film_fields',[]),list):raise ValueError('paths/film_fields must be lists')
+    for pattern in spec.get('paths',[]):
+        if not isinstance(pattern,str) or pathlib.PurePosixPath(pattern).is_absolute() or '..' in pathlib.PurePosixPath(pattern).parts:
+            raise ValueError('Build dependencies must be project-relative paths/globs')
+        matches=sorted(p for p in project.glob(pattern) if p.is_file())
+        if not matches:raise ValueError('Missing build dependency: '+pattern)
+        paths.extend(matches)
+    fields={}
+    for key in spec.get('film_fields',[]):
+        if not isinstance(key,str):raise ValueError('film_fields must contain dotted field names')
+        value=film
+        for part in key.split('.'):
+            if not isinstance(value,dict) or part not in value:raise ValueError('Missing film dependency: '+key)
+            value=value[part]
+        fields[key]=value
+    return paths,fields
+
+
+def _film_inputs(film,kind):
+    import copy
+    f=copy.deepcopy(film);f.pop('build_dependencies',None)
+    if kind=='frames':
+        for key in _AUDIO_ONLY:f.pop(key,None)
+        # BPM is still visual: beatKick, rhythm-driven custom scenes and punches may use it.
+        voice=f.get('voice',{});f['voice']={k:voice[k]for k in ('cues',)if k in voice}
+        if 'direction' in f:f['direction']={k:v for k,v in f['direction'].items()if k!='sound'}
+        for beat in f.get('beats',[]):
+            for key in _BEAT_AUDIO:beat.pop(key,None)
+    elif kind=='audio':
+        # audio.py consumes these fields; unknown custom fields are kept conservatively.
+        for key in ('width','height','fps','title','renderer','chrome','progress','decor','echo','wipe','scene_transition','punches','beatKick','subtitleY','subtitles','subtitles_max_cps','audio_master'):
+            f.pop(key,None)
+        for key in ('words','asr_vocabulary'):f.get('voice',{}).pop(key,None)
+        for beat in f.get('beats',[]):
+            for key in ('event_anchors','scene','transition','subtitleY','echoText','echoSize','echoX','echoY','note'):
+                beat.pop(key,None)
+    return f
+
+
+def _cue_inputs(cues,kind):
+    if kind=='frames':
+        return {'sentences':[{k:q[k]for k in ('text','start','end')if k in q}for q in cues.get('sentences',[])]}
+    if kind=='audio':
+        return {k:v for k,v in cues.items()if k!='sentences'}|{'sentences':[{k:q[k]for k in ('file','start','end')if k in q}for q in cues.get('sentences',[])]}
+    return cues
+
+
+def _outputs_digest(project,kind,count=None):
+    if kind=='frames':
+        paths=sorted((project/'frames').glob('f*.jpg'))
+        if count is not None and (len(paths)!=count or any(p.name!=f'f{i:05d}.jpg'for i,p in enumerate(paths))):return None
+    elif kind=='audio':paths=[p for p in (project/'audio').glob('*.wav')if p.name in ('mix.wav','voice.wav','bgm.wav','sfx.wav')]
+    elif kind=='checks':paths=[project/'checks/delivery.json']
+    else:raise ValueError('Unsupported output group')
+    result={str(p.relative_to(project)):file_hash(p)for p in sorted(paths)if p.is_file()}
+    return result
+
+
+def build_fingerprint(project,kind):
+    project=pathlib.Path(project).resolve()
+    if kind not in _STAGE_SCRIPTS:raise ValueError('Unknown build stage: '+kind)
+    film_path=project/'film.json';film=json.loads(film_path.read_text())if film_path.is_file()else{}
+    digest=hashlib.sha256(f'film-build-v{BUILD_SCHEMA}:{kind}'.encode());paths=[]
+    def add(label,value):digest.update(label.encode()+b'\0'+_canonical(value)+b'\0')
+    extras,fields=_extra_dependencies(project,film,kind);paths.extend(extras);add('explicit-film-fields',fields)
+    if kind in ('frames','audio','checks'):
+        add('film',_film_inputs(film,kind))
+        cp=cues_path(project,film)
+        if film.get('voice',{}).get('cues') or cp.is_file():
+            add('cues',_cue_inputs(json.loads(cp.read_text()),kind)if cp.is_file()else None)
+    if kind=='frames':
+        paths.extend(p for p in project.rglob('*')if p.is_file()and p.suffix.lower()in ('.js','.html','.css','.svg','.png','.jpg','.jpeg','.webp','.gif','.otf','.ttf','.woff','.woff2','.mp4','.webm')and p.relative_to(project).parts[0]not in ('engine','frames','checks','out','build','.cache','.git'))
+        # Other JSON data is conservatively visual unless explicitly a known audio/check file.
+        paths.extend(p for p in project.rglob('*.json')if p.is_file()and p!=film_path and p!=cues_path(project,film)and p.relative_to(project).parts[0]not in ('audio','engine','checks','out','build','.cache','.git')and p.name not in ('claims.json','provenance.json'))
+    elif kind=='audio':
+        paths.extend(p for p in (project/'audio').rglob('*')if p.is_file()and p.name not in ('mix.wav','voice.wav','bgm.wav','sfx.wav','cues.json','words.json')and p.suffix.lower()in ('.wav','.mp3','.m4a','.aac','.flac','.ogg'))
+        # Custom source paths named by cues need not live under audio/.
+        cp=cues_path(project,film)
+        if cp.is_file():
+            c=json.loads(cp.read_text());names=[c['audio']]if c.get('audio')else[q.get('file')for q in c.get('sentences',[])]
+            paths.extend(project/n for n in names if n and(project/n).is_file())
+    elif kind in ('video','checks'):
+        for dep in ('frames','audio'):
+            add(dep+'-sources',build_fingerprint(project,dep))
+            stamp_path=project/'build'/f'{dep}.json'
+            stamp=json.loads(stamp_path.read_text())if stamp_path.is_file()else{}
+            add(dep+'-outputs',_outputs_digest(project,dep,stamp.get('count')if dep=='frames'else None))
+        add('mastering',{'duration':film.get('duration'),'fps':film.get('fps',30),'audio_master':film.get('audio_master',{})})
+        if kind=='checks':
+            add('video-sources',build_fingerprint(project,'video'))
+            paths.extend(project/n for n in ('claims.json','narration.txt','provenance.json')if(project/n).is_file())
+            stamp=project/'build/video.json';record=json.loads(stamp.read_text())if stamp.is_file()else{}
+            vp=project/record['output_relative']if record.get('output_relative')else pathlib.Path(record.get('output',''))
+            add('video-sha256',file_hash(vp)if vp.is_file()else None)
+    # Hash only the Python builders actually used for this stage, including external invocations.
+    engine=pathlib.Path(__file__).parent
+    paths.extend(engine/n for n in _STAGE_SCRIPTS[kind]if(engine/n).is_file())
+    catalog=None
+    if kind in ('audio','checks'):
+        catalog=engine/'direction-profiles.json'
+        if not catalog.is_file():catalog=engine.parent/'themes/direction-profiles.json'
+        if catalog.is_file():paths.append(catalog)
+    if kind in ('frames','audio','checks')and(project/'requirements.txt').is_file():paths.append(project/'requirements.txt')
+    if kind=='checks'and(project/'requirements-asr.txt').is_file():paths.append(project/'requirements-asr.txt')
+    entries={}
+    for path in set(paths):
+        if path.parent==engine and path.name in _STAGE_SCRIPTS[kind]:label='@builder/'+path.name
+        elif catalog is not None and path==catalog:label='@catalog/direction-profiles.json'
+        else:label=str(path.relative_to(project))if path.is_relative_to(project)else'@builder/'+path.name
+        entries[label]=file_hash(path)
+    for label,value in sorted(entries.items()):add(label,value)
     return digest.hexdigest()
 
 
-def mark_build(project, kind, **extra):
-    write_json(pathlib.Path(project)/'build'/f'{kind}.json',
-               {'fingerprint':build_fingerprint(project, kind), **extra})
+def mark_build(project,kind,**extra):
+    project=pathlib.Path(project).resolve()
+    if kind=='video' and extra.get('output'):
+        output=pathlib.Path(extra['output']).resolve()
+        if output.is_relative_to(project):extra['output_relative']=str(output.relative_to(project))
+    if kind in ('frames','audio','checks'):
+        extra['outputs']=_outputs_digest(project,kind,extra.get('count')if kind=='frames'else None)
+    write_json(project/'build'/f'{kind}.json',{'schema':BUILD_SCHEMA,'fingerprint':build_fingerprint(project,kind),**extra})
 
 
-def build_current(project, kind):
-    path = pathlib.Path(project)/'build'/f'{kind}.json'
+def build_current(project,kind):
+    project=pathlib.Path(project).resolve()
     try:
-        stamp = json.loads(path.read_text())
-        if stamp['fingerprint'] != build_fingerprint(project, kind): return False
-        root = pathlib.Path(project)
-        if kind == 'audio' and not (root/'audio/mix.wav').is_file(): return False
-        if kind == 'frames':
-            count = stamp.get('count',0)
-            if count < 1 or any(not (root/'frames'/f'f{i:05d}.jpg').is_file() for i in range(count)): return False
+        stamp=json.loads((project/'build'/f'{kind}.json').read_text())
+        if stamp.get('schema')!=BUILD_SCHEMA or stamp['fingerprint']!=build_fingerprint(project,kind):return False
+        if kind in ('frames','audio','checks'):
+            actual=_outputs_digest(project,kind,stamp.get('count')if kind=='frames'else None)
+            if not actual or actual!=stamp.get('outputs'):return False
+            if kind=='frames'and stamp.get('count',0)<1:return False
+            if kind=='audio'and'audio/mix.wav'not in actual:return False
+        if kind=='video':
+            path=project/stamp['output_relative']if stamp.get('output_relative')else pathlib.Path(stamp['output'])
+            if not path.is_file()or file_hash(path)!=stamp.get('sha256'):return False
         return True
-    except (OSError, ValueError, KeyError):
-        return False
+    except (OSError,ValueError,KeyError,TypeError):return False
 
 
 def sound_events(beat, film=None):
@@ -205,6 +323,11 @@ def sound_events(beat, film=None):
                 duration=step*spec.get('duty',.94) if duration=='step' else duration
                 if not number(duration) or not .02<=duration<=5:raise ValueError('Invalid sound duration')
                 row.append(duration)
+            if 'pan' in spec:
+                pan=spec['pan']
+                if not number(pan)or not -1<=pan<=1:raise ValueError('Sound pan must be -1 to 1')
+                if len(row)==3:row.append(None)
+                row.append(pan)
             result.append(row)
     return result
 

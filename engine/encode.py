@@ -15,6 +15,12 @@ def encode(project,output):
             raise SystemExit(f'{kind} 缺失或过期；先 check.py auto')
     film=json.loads((project/'film.json').read_text())
     output=pathlib.Path(output).resolve(); output.parent.mkdir(parents=True,exist_ok=True)
+    if build_current(project,'video'):
+        record=json.loads((project/'build/video.json').read_text())
+        if output.is_file() and file_hash(output)==record.get('sha256'):
+            if str(output)!=record.get('output'):mark_build(project,'video',output=str(output),sha256=record['sha256'],audio_metrics=record.get('audio_metrics'))
+            print(f'✓ 复用现有成片（依赖与文件散列一致）：{output}')
+            return
     mastering=mastering_filter(project/'audio/mix.wav',film)
     subprocess.run(['ffmpeg','-y','-v','error','-framerate',str(film.get('fps',30)),
         '-i',str(project/'frames/f%05d.jpg'),'-i',str(project/'audio/mix.wav'),

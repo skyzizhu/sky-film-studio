@@ -186,7 +186,7 @@ PROG = {
 }
 
 
-from project import timeline_errors, mark_build, sound_events
+from project import timeline_errors, mark_build, sound_events, number
 
 
 # ==========================================
@@ -415,9 +415,11 @@ def build(project):
         for ev in sound_events(b,film):
             tr, kind, g = ev[0], ev[1], ev[2] if len(ev) > 2 else 0.2
             p = ev[3] if len(ev) > 3 else None
+            pan=ev[4]if len(ev)>4 else 0
+            if not number(pan)or not -1<=pan<=1:raise ValueError('Sound pan must be -1 to 1')
             waveform=sfx_voice(kind,p)
-            place(sfx,waveform,b["start"]+tr,g)
-            sound_log.append({'beat':b['id'],'at':round(b['start']+tr,5),'kind':kind,'gain':g,'duration':round(len(waveform)/SR,4)})
+            place(sfx,waveform,b["start"]+tr,g,pan=pan)
+            sound_log.append({'beat':b['id'],'at':round(b['start']+tr,5),'kind':kind,'gain':g,'pan':pan,'duration':round(len(waveform)/SR,4)})
 
     speech = []
     cues_path = film.get("voice", {}).get("cues")

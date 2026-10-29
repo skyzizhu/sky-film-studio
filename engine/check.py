@@ -35,6 +35,10 @@ def preflight(project, strict=False):
     except (ValueError,TypeError) as error:
         print('✗',error);return False
     errors, warnings = timeline_errors(film,cues)+transition_errors(film)+soundscape_errors(film), []
+    try:
+        from project import _extra_dependencies
+        for stage in ('frames','audio','video','checks'):_extra_dependencies(project,film,stage)
+    except ValueError as error:errors.append(str(error))
     try: policy(film)
     except ValueError as error:errors.append(str(error))
     for beat in film.get('beats',[]):
@@ -210,6 +214,9 @@ def delivery(project,video):
     result={'audio_metrics':stats,'technical_passed':ok,'manual_review_required':['画面辨识度/结构与遮挡','首句/数字句/末句试听','字幕完整性与事实来源']}
     from project import write_json
     write_json(project/'checks/delivery.json',result)
+    if ok:
+        from project import mark_build
+        mark_build(project,'checks',video_sha256=file_hash(path))
     print('✓ 编码与技术检查通过；仍需完成观看/试听验收' if ok else '✗ 交付检查未通过')
     return ok
 
@@ -220,6 +227,9 @@ def auto(args):
     engine=pathlib.Path(__file__).parent
     def run(name,*options):
         subprocess.run([sys.executable,str(engine/name),'--project',str(project),*options],check=True)
+    if not build_current(project,'audio'):
+        subprocess.run([sys.executable,str(engine/'audio.py'),'build','--project',str(project)],check=True)
+    if not audio(project): return False
     keys=args.keys
     if keys=='auto':
         times=[]
@@ -230,9 +240,6 @@ def auto(args):
         keys=','.join(map(str,sorted(set(times))))
     run('render.py','--keys',keys,'--determinism','--strict-fonts')
     sheet(project,args.n)
-    if not build_current(project,'audio'):
-        subprocess.run([sys.executable,str(engine/'audio.py'),'build','--project',str(project)],check=True)
-    if not audio(project): return False
     if not build_current(project,'frames'):
         run('render.py','--full','--determinism','--strict-fonts')
     edges(project,args.every,args.thr)

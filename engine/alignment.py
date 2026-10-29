@@ -7,6 +7,8 @@ import json
 import pathlib
 import re
 import unicodedata
+import hashlib
+from functools import lru_cache
 from project import file_hash,write_json,number
 
 
@@ -22,12 +24,13 @@ def model_at(path):
     return WhisperModel(str(path),device='cpu',compute_type='int8',cpu_threads=4,local_files_only=True)
 
 
-def recognize(model,path,vocabulary=None,*,word_timestamps=True):
-    segments,_=model.transcribe(str(path),language='zh',word_timestamps=word_timestamps,beam_size=5,
-                               vad_filter=False,condition_on_previous_text=False,temperature=0,
+def recognize(model,path,vocabulary=None,*,word_timestamps=True,vad_filter=False):
+    segments,_=model.transcribe(str(path)if isinstance(path,(str,pathlib.Path))else path,language='zh',word_timestamps=word_timestamps,beam_size=5,
+                               vad_filter=vad_filter,vad_parameters=VAD_OPTIONS if vad_filter else None,condition_on_previous_text=False,temperature=0,
                                initial_prompt=('简体中文。专有词：'+ '、'.join(vocabulary)) if vocabulary else None)
     rows=list(segments)
-    return {'text':''.join(s.text for s in rows),'words':[{'text':w.word,'start':w.start,'end':w.end,'probability':w.probability}
+    return {'segments':[{k:getattr(s,k)for k in ('start','end','text','avg_logprob','no_speech_prob','compression_ratio')if hasattr(s,k)}for s in rows],
+        'text':''.join(s.text for s in rows),'words':[{'text':w.word,'start':w.start,'end':w.end,'probability':w.probability}
             for s in rows for w in s.words or []]}
 
 
@@ -129,27 +132,125 @@ def track_coverage(project,video,cues):
             'note':'全句源波形匹配检验漏句/偏移，不证明发音、人名或主观听感正确。'}
 
 
-def audit(project,video,model_path):
+VAD_OPTIONS={'min_silence_duration_ms':350,'speech_pad_ms':180,'min_speech_duration_ms':120}
+_DIGITS=dict(zip('零〇一二两三四五六七八九',[0,0,1,2,2,3,4,5,6,7,8,9]))
+_SMALL={'十':10,'百':100,'千':1000}
+
+
+def chinese_number(text):
+    integer,_,decimal=text.partition('点')
+    if not any(c in integer for c in '十百千万亿'):
+        value=''.join(str(_DIGITS[c])for c in integer)
+    else:
+        total=section=number=0
+        for c in integer:
+            if c in _DIGITS:number=_DIGITS[c]
+            elif c in _SMALL:section+=(number or 1)*_SMALL[c];number=0
+            elif c=='万':total+=(section+number)*10000;section=number=0
+            elif c=='亿':total=(total+section+number)*100000000;section=number=0
+        value=str(total+section+number)
+    return value+('.'+''.join(str(_DIGITS[c])for c in decimal)if decimal else '')
+
+
+@lru_cache(maxsize=1)
+def review_converter():
+    try:
+        from opencc import OpenCC
+        return OpenCC('t2s').convert
+    except ImportError:return None
+
+
+def review_normalized(text,converter=None):
+    text=unicodedata.normalize('NFKC',text)
+    convert=converter or review_converter()
+    if convert:text=convert(text)
+    text=re.sub(r'[零〇一二两三四五六七八九十百千万亿]+(?:点[零〇一二两三四五六七八九]+)?',lambda m:chinese_number(m.group()),text)
+    return normalized(text)
+
+
+def review_diff(expected,recognized,normalize=normalized):
+    a,b=normalize(expected),normalize(recognized);matcher=difflib.SequenceMatcher(None,a,b,autojunk=False)
+    return {'similarity':round(matcher.ratio(),4),'differences':[{'kind':tag,'expected':a[i:j],'recognized':b[k:l]}for tag,i,j,k,l in matcher.get_opcodes()if tag!='equal']}
+
+
+def outside_intervals(detected,expected,padding=.3,min_duration=.4):
+    """Activity outside planned cues is a review hint, not proof of extra words."""
+    result=[]
+    for a,b in detected:
+        pieces=[(a,b)]
+        for x,y in expected:
+            x-=padding;y+=padding;updated=[]
+            for u,v in pieces:
+                if y<=u or x>=v:updated.append((u,v));continue
+                if u<x:updated.append((u,min(v,x)))
+                if y<v:updated.append((max(u,y),v))
+            pieces=updated
+        result.extend([round(u,3),round(v,3)]for u,v in pieces if v-u>=min_duration)
+    return result
+
+
+def asr_flags(segments,speech):
+    flags=[]
+    for i,s in enumerate(segments):
+        reasons=[];text=normalized(s.get('text',''))
+        if re.search(r'(.{2,12})\1{2,}',text):reasons.append('repetition_requires_review')
+        if number(s.get('no_speech_prob'))and s['no_speech_prob']>.6:reasons.append('high_no_speech_probability')
+        if number(s.get('avg_logprob'))and s['avg_logprob']<-1:reasons.append('low_average_log_probability')
+        if number(s.get('compression_ratio'))and s['compression_ratio']>2.4:reasons.append('high_repetition_compression')
+        a,b=s.get('start'),s.get('end')
+        if number(a)and number(b)and b>a and not any(min(b,y)>max(a,x)for x,y in speech):reasons.append('outside_detected_speech')
+        if reasons:flags.append({'segment':i,'start':a,'end':b,'text':s.get('text',''),'reasons':reasons})
+    return flags
+
+
+def decode_audio(path):
+    import numpy as np,subprocess
+    raw=subprocess.run(['ffmpeg','-v','error','-i',str(path),'-vn','-ar','16000','-ac','1','-f','f32le','-'],capture_output=True,check=True).stdout
+    return np.frombuffer(raw,dtype='<f4').copy()
+
+
+def _result_hash(value):
+    return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+
+
+def audit(project,video,model_path,output=None):
     project=pathlib.Path(project).resolve();film=json.loads((project/'film.json').read_text())
-    cues=json.loads((project/film['voice']['cues']).read_text())
-    # Full-track text review does not need the fragile per-word alignment pass.
-    # Sentence proposals retain word timestamps for semantic event binding.
-    result=recognize(model_at(model_path),video,film.get('voice',{}).get('asr_vocabulary'),word_timestamps=False)
-    expected=''.join(s['text'] for s in cues['sentences']);a,b=normalized(expected),normalized(result['text'])
-    matcher=difflib.SequenceMatcher(None,a,b,autojunk=False)
-    edits=[{'kind':tag,'expected':a[i:j],'recognized':b[k:l]}for tag,i,j,k,l in matcher.get_opcodes()if tag!='equal']
-    report={'kind':'automated-full-track-asr-review','model':pathlib.Path(model_path).name,'video_sha256':file_hash(video),
-        'human_listening':'pending','expected':expected,**result,
-        'source_coverage':track_coverage(project,video,cues),
-        'text_similarity':round(matcher.ratio(),4),'differences':edits,
-        'note':'全长自动转录不等于真人试听；同音字、人名、词时码及听感需要复核。'}
-    write_json(project/'checks/audio-review.json',report)
-    print(json.dumps({'similarity':report['text_similarity'],'differences':edits},ensure_ascii=False))
+    cues=json.loads((project/film['voice']['cues']).read_text());audio=decode_audio(video)
+    model_path=pathlib.Path(model_path).expanduser().resolve()
+    model_files={p.name:file_hash(p)for p in sorted(model_path.iterdir())if p.is_file()and p.suffix in ('.bin','.json','.txt')}
+    params={'audio_sha256':hashlib.sha256(audio.tobytes()).hexdigest(),'model_files':model_files,'vad':VAD_OPTIONS,'implementation':file_hash(__file__),'vocabulary':film.get('voice',{}).get('asr_vocabulary')}
+    key=_result_hash(params);cache=project/'checks/asr-cache.json';cached=None
+    try:
+        c=json.loads(cache.read_text())
+        if c['fingerprint']==key and c['result_sha256']==_result_hash(c['result']):cached=c['result']
+    except (OSError,KeyError,ValueError,TypeError):pass
+    if cached is None:
+        from faster_whisper.vad import get_speech_timestamps,VadOptions
+        speech=[[r['start']/16000,r['end']/16000]for r in get_speech_timestamps(audio,VadOptions(**VAD_OPTIONS))]
+        result=recognize(model_at(model_path),audio,params['vocabulary'],word_timestamps=False,vad_filter=True)
+        cached={'recognition':result,'speech_intervals':speech}
+        write_json(cache,{'fingerprint':key,'result':cached,'result_sha256':_result_hash(cached)})
+        reused=False
+    else:reused=True
+    result=cached['recognition'];speech=cached['speech_intervals'];expected=''.join(s['text']for s in cues['sentences'])
+    raw=review_diff(expected,result['text']);review=review_diff(expected,result['text'],review_normalized)
+    report={'kind':'automated-full-track-asr-review','model':model_path.name,'video_sha256':file_hash(video),
+        'human_listening':'pending','expected':expected,**result,'source_coverage':track_coverage(project,video,cues),
+        'text_similarity':raw['similarity'],'differences':raw['differences'],'review_similarity':review['similarity'],'review_differences':review['differences'],
+        'normalization':{'unicode':'NFKC','traditional_to_simplified':'OpenCC t2s'if review_converter()else'unavailable; preserved','chinese_numbers':'integer/digit/decimal forms; review heuristic'},
+        'vad':{'enabled':True,'options':VAD_OPTIONS,'speech_intervals':speech,'cues_without_detected_activity':[i for i,c in enumerate(cues['sentences'])if not any(min(c['end'],b)>max(c['start'],a)for a,b in speech)],'activity_outside_cues':outside_intervals(speech,[(s['start'],s['end'])for s in cues['sentences']])},
+        'suspicious_segments':asr_flags(result.get('segments',[]),speech),'asr_cache_reused':reused,'audio_sha256':params['audio_sha256'],
+        'note':'原始识别文本和差异保留；规范化与VAD仅辅助定位问题，不证明发音、人名、额外语音或主观听感。全文语音检测独立于预期cues，不按稿件时间截掉未知语音。'}
+    target=pathlib.Path(output)if output else pathlib.Path('checks/audio-review.json')
+    if not target.is_absolute():target=project/target
+    write_json(target,report)
+    print(json.dumps({'raw_similarity':raw['similarity'],'review_similarity':review['similarity'],'suspicious_segments':report['suspicious_segments'],'activity_outside_cues':report['vad']['activity_outside_cues'],'asr_cache_reused':reused},ensure_ascii=False))
+    return report
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('command',choices=['transcribe','apply','audit'])
-    parser.add_argument('--project',required=True);parser.add_argument('--model');parser.add_argument('--video')
+    parser.add_argument('--project',required=True);parser.add_argument('--model');parser.add_argument('--video');parser.add_argument('--output',help='Audit JSON path, relative to project by default')
     args=parser.parse_args()
     if args.command=='apply':apply(args.project)
     elif args.command=='transcribe':
@@ -157,6 +258,6 @@ def main():
         transcribe(args.project,args.model)
     else:
         if not args.model or not args.video:parser.error('audit requires --model PATH --video PATH')
-        audit(args.project,str(pathlib.Path(args.video).resolve()),args.model)
+        audit(args.project,str(pathlib.Path(args.video).resolve()),args.model,args.output)
 
 if __name__=='__main__':main()

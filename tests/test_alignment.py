@@ -48,7 +48,8 @@ class TrackCoverageTests(unittest.TestCase):
     self.requests.append(kwargs['word_timestamps'])
     return iter([SimpleNamespace(text='信号',words=None)]),None
   m=Model()
-  self.assertEqual(recognize(m,'film.mp4',word_timestamps=False),{'text':'信号','words':[]})
+  result=recognize(m,'film.mp4',word_timestamps=False)
+  self.assertEqual(result['text'],'信号');self.assertEqual(result['words'],[]);self.assertEqual(result['segments'],[{'text':'信号'}])
   recognize(m,'sentence.wav')
   self.assertEqual(m.requests,[False,True])
  def test_full_source_audio_presence_and_delay(self):

@@ -26,4 +26,15 @@ class HistoricalSoundTests(unittest.TestCase):
   for kind in ['wood_turn','wood_stop']:
    audio.rng=np.random.default_rng(3);a=audio.sfx_voice(kind,.4);audio.rng=np.random.default_rng(3)
    self.assertTrue(np.array_equal(a,audio.sfx_voice(kind,.4)));self.assertTrue(np.isfinite(a).all());self.assertEqual(len(a),int(audio.SR*.4))
+class SoundPerspectiveTests(unittest.TestCase):
+ def test_pan_keeps_event_time_and_optional_default_duration(self):
+  b={'start':0,'end':4,'events':{'move':[1,2]},'sfx_events':[{'event':'move','kind':'wood_stop','gain':.05,'pan':.6}]}
+  self.assertEqual(sound_events(b)[0],[1,'wood_stop',.05,None,.6])
+  b['sfx_events'][0]['pan']=2
+  with self.assertRaises(ValueError):sound_events(b)
+ def test_actual_stereo_placement_respects_direction(self):
+  import numpy as np
+  buf=np.zeros((2,10));audio.place(buf,np.ones(5),0,.1,pan=.6)
+  self.assertGreater(buf[1].sum(),buf[0].sum())
+
 if __name__=='__main__':unittest.main()

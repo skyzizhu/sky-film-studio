@@ -74,3 +74,16 @@ python engine/alignment.py audit --project "$FILM" --model /absolute/local/model
 全文audit不请求词时间戳，避免为文字复核额外执行词级对齐；逐句transcribe仍保留词时间估计供事件绑定。两者用途不同，不把全文识别结果当成动作锚点。
 
 本地ASR接口依据：[faster-whisper](https://github.com/SYSTRAN/faster-whisper)。
+
+## 全文复核的误报与缓存
+
+全文audit使用独立于cues的Silero语音活动检测，再识别完整文件中检测到的语音；不按预期稿件时间剪掉未知语音。报告保留原始text、segments和differences，并另列：
+
+- review_similarity/review_differences：NFKC、可用时OpenCC繁转简、中文数字写法规范化后的对照。原始差异不删除；地名、同音字和数值变化仍需核对，规范化不证明发音正确。
+- vad：检测到的语音区间、cues外的活动提示、未检测到活动的句子。VAD不是文字对齐，也不证明区间外没有人声。
+- suspicious_segments：重复短句、低平均概率、高无语音概率或检测区间外文本等提示。可疑不等于确认错误，不自动删除识别文本。
+- source_coverage：最终音轨与逐句源波形的独立完整性/偏移检查；不判断人名或主观听感。
+
+可选OpenCC随requirements-asr.txt安装；缺失时报告明确记录未做繁简转换。逐句transcribe仍保留原始词时间估计，绑定使用的normalized不改写数字，避免改变字符与词所有权。
+
+checks/asr-cache.json以最终解码音频、本地模型文件、识别设置和实现版本作为键，并校验缓存结果散列。仅画面或容器元数据改变、音频完全一致时可复用识别；每次仍重算文稿对照和源波形检查，更新最终视频散列。人工试听状态保持pending。--output可将audit报告写到指定项目相对路径，便于保留前后对照。
