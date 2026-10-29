@@ -30,11 +30,11 @@ def probe(path):
 
 def preflight(project, strict=False):
     project, film, cues = load(project)
-    from direction import resolve
+    from direction import resolve, evidence_errors
     try:film=resolve(film)
     except (ValueError,TypeError) as error:
         print('✗',error);return False
-    errors, warnings = timeline_errors(film,cues)+transition_errors(film)+soundscape_errors(film), []
+    errors, warnings = timeline_errors(film,cues)+transition_errors(film)+soundscape_errors(film)+evidence_errors(film), []
     try:
         from project import _extra_dependencies
         for stage in ('frames','audio','video','checks'):_extra_dependencies(project,film,stage)

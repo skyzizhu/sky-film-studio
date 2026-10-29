@@ -2,7 +2,7 @@ import copy,json,pathlib,subprocess,sys,tempfile,unittest
 import numpy as np
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'engine'))
-from direction import resolve,plan,catalog,section_layers
+from direction import resolve,plan,catalog,section_layers,evidence_errors
 from project import sound_events
 
 class DirectionTests(unittest.TestCase):
@@ -22,6 +22,25 @@ class DirectionTests(unittest.TestCase):
   d=plan({},'history','blueprint','tactile');self.assertIn('时间与来源',d['guidance']['content']['structure'])
   f=d['film'];self.assertEqual(f['theme'],'blueprint');self.assertEqual(f['direction']['sound'],'tactile')
   self.assertEqual(section_layers(f,{'intent':'inspect'})['percussion'],0)
+ def test_task_is_independent_and_survives_replanning(self):
+  original={'direction':{'content':'history','style':'blueprint','sound':'tactile','task':'mechanism'}}
+  f=resolve(original)
+  self.assertEqual(f['direction']['task'],'mechanism')
+  baseline=resolve({'direction':{'content':'history','style':'blueprint','sound':'tactile'}})
+  self.assertEqual(f['music'],baseline['music'])
+  result=plan(f,'tutorial','museum',None)
+  self.assertEqual(result['film']['direction']['task'],'mechanism')
+  self.assertIn('task',result['guidance'])
+  self.assertEqual(plan(f,'tutorial','museum',None,'procedure')['film']['direction']['task'],'procedure')
+  with self.assertRaises(ValueError):resolve({'direction':{'style':'museum','task':'typo'}})
+ def test_evidence_contract_references_real_local_events(self):
+  beat={'id':'pack','events':{'place':[1,2]},'evidence':{'subject':'notebook','change':'move to bag','result':'one notebook in bag','event_ids':['place']}}
+  self.assertEqual(evidence_errors({'beats':[beat]}),[])
+  bad=copy.deepcopy(beat);bad['evidence']['event_ids']=['missing']
+  self.assertTrue(evidence_errors({'beats':[bad]}))
+  bad=copy.deepcopy(beat);bad['evidence']['result']=' '
+  self.assertTrue(evidence_errors({'beats':[bad]}))
+  self.assertEqual(evidence_errors({'beats':[{'id':'legacy'}]}),[])
  def test_same_contact_has_distinct_sound_and_same_anchor(self):
   b={'start':0,'end':10,'events':{'land':[2,3]},'sfx_events':[{'event':'land','role':'contact'}]}
   rows=[sound_events(b,resolve({'direction':{'style':s}}))[0] for s in ['blueprint','museum','whiteboard']]
@@ -52,9 +71,9 @@ class DirectionTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as directory:
    for style in ['blueprint','museum','whiteboard']:
     p=pathlib.Path(directory)/style
-    subprocess.run([sys.executable,str(ROOT/'engine/new.py'),str(p),'--content','history','--style',style],check=True,capture_output=True)
+    subprocess.run([sys.executable,str(ROOT/'engine/new.py'),str(p),'--content','history','--style',style,'--task','mechanism'],check=True,capture_output=True)
     f=json.loads((p/'film.json').read_text());self.assertEqual(f['direction']['content'],'history')
-    self.assertEqual(f['renderer'],style);self.assertIn('sections',f['music'])
+    self.assertEqual(f['direction']['task'],'mechanism');self.assertEqual(f['renderer'],style);self.assertIn('sections',f['music'])
     # Invoke only the saved engine and catalog after changing cwd.
     text=subprocess.check_output([sys.executable,'-c','from direction import catalog; print(catalog()["version"])'],cwd=p/'engine',text=True)
     self.assertEqual(text.strip(),'1');self.assertTrue((p/'vendor/style-motion.js').is_file())

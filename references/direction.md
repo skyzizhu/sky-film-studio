@@ -2,6 +2,8 @@
 
 已深化 `blueprint / museum / whiteboard / archive`，其余主题继续使用原接口。内容类型负责叙事与证据，风格负责视觉语法，声音档案负责动作发声；palette仍由theme选择。配置的默认建议不能证明镜头适合内容，最终仍需看动作、听声音并核对来源。
 
+主题之外可配置独立讲解任务direction.task，逐拍证据和跨主题验证见 [narrative.md](narrative.md)。
+
 ## 选择与创建
 
 ```sh

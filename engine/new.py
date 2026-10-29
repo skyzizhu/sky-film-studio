@@ -169,12 +169,13 @@ def main():
                     help="参数化模板：daily-brief 日更快讯 | how-to N步流程 | fact-card 数据卡片")
     ap.add_argument('--style',choices=list(catalog()['styles']),help='Visual treatment; theme may independently override palette')
     ap.add_argument('--content',choices=list(catalog()['contents']),default='concept')
+    ap.add_argument('--task',choices=list(catalog()['tasks']),help='Narrative task, independent of topic/style/sound')
     ap.add_argument('--sound',choices=list(catalog()['sounds']),help='Semantic action-sound palette')
     args = ap.parse_args()
     args.theme=args.theme or args.style or 'default'
     args.style=args.style or (args.theme if args.theme in catalog()['styles'] else None)
-    if not args.style and (args.sound or args.content!='concept'):
-        ap.error('--content/--sound require a supported --style')
+    if not args.style and (args.sound or args.task or args.content!='concept'):
+        ap.error('--content/--sound/--task require a supported --style')
     proj = pathlib.Path(args.dir).resolve()
     if proj.exists() and any(proj.iterdir()):
         raise SystemExit(f"拒绝覆盖非空项目目录：{proj}；请新建目录或显式维护现有文件")
@@ -263,9 +264,10 @@ def main():
     if args.style:
         film=json.loads((proj/'film.json').read_text(encoding='utf-8'))
         film['direction']={'content':args.content,'style':args.style,'sound':args.sound or catalog()['styles'][args.style]['sound']}
+        if args.task:film['direction']['task']=args.task
         film['music']={}
         write_json(proj/'film.json',resolve(film))
-        write_json(proj/'checks/direction-plan.json',plan(film,args.content,args.style,args.sound))
+        write_json(proj/'checks/direction-plan.json',plan(film,args.content,args.style,args.sound,args.task))
     (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     # All fonts are bundled; copy the exact font manifest, preserving offline builds.
     for f in (SKILL/'assets/fonts').iterdir():
