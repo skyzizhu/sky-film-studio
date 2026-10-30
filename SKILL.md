@@ -41,7 +41,7 @@ description: "Create and revise 30s–5min explainer and product showcase films 
 
 产品宣传使用独立的 `promotion` 任务和 `product` 风格，默认 impact 高能商业宣传，另可选 precision / flow / playful，studio 保留安静陈列；真实产品参考、卖点证据、概念素材与行动入口读 [product.md](references/product.md)。要求炫酷、运动感或商业广告质感时，继续读 [product-impact.md](references/product-impact.md)，按产品、镜头、灯光、动效、文字与声音的共同动作设计，不能仅改配色或 BPM。
 
-软件/App 宣传涉及真实界面、操作结果或“动效很多但像功能清单”时，再读 [product-proof.md](references/product-proof.md)：按素材证据编排连续操作、结果式钩子、景别与声音。维护 skill 时将经验写入规则/助手并验证；不要把技能优化擅自替换成重做案例视频。
+软件/App 宣传涉及真实界面、操作结果或“动效很多但像功能清单”时，再读 [product-proof.md](references/product-proof.md)：先明确产品运行平台与交互方式，再按素材证据编排连续操作、结果式钩子、景别与声音；移动端特写保留平台辨识，复查页签、触点、弹层与结果状态。维护 skill 时将经验写入规则/助手并验证；不要把技能优化擅自替换成重做案例视频。
 
 - 通用概念用清晰图标；具体实物可用参数化矢量、SVG、参考图片或必要的 3D。真实人物、历史遗物、指定产品应核验关键形态，虚构示意不可冒充真实记录。
 - 先保证轮廓和关键部件可辨，再加材质、光影、描线或抖动。入场动画与物体动作分开：出现、抓取/转动/流转、停留、退出。跨镜头复用实体身份。
