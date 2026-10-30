@@ -38,6 +38,19 @@ window.ProductMotion=(()=>{
    return {progress:u,size:fit,width:measured};
   }finally{ctx.restore();}
  }
+ // Replace conflicting content in one reading region, with no crossfade overlap.
+ // Keep the surrounding card/product state outside these callbacks.
+ function replace(ctx,t,event,drawBefore,drawAfter){
+  if(!Number.isFinite(t)||!Array.isArray(event)||event.length!==4||!event.every(Number.isFinite)||
+    !(event[0]<event[1]&&event[1]<=event[2]&&event[2]<event[3])||
+    typeof drawBefore!=='function'||typeof drawAfter!=='function')throw Error('Invalid product replace event');
+  const [start,clear,show,end]=event;
+  let phase='clear',opacity=0,draw;
+  if(t<clear){phase='before';opacity=1-easing((t-start)/(clear-start),'smooth');draw=drawBefore;}
+  else if(t>show){phase='after';opacity=easing((t-show)/(end-show),'smooth');draw=drawAfter;}
+  if(opacity>0){ctx.save();try{ctx.globalAlpha*=opacity;draw(ctx,t);}finally{ctx.restore();}}
+  return {phase,opacity};
+ }
  // A short temporal trail on the moving subject, not a physical shutter model.
  function trail(ctx,t,event,drawSubject,o={}){
   const samples=o.samples??4,shutter=o.shutter??.06,opacity=o.opacity??.16;
@@ -49,5 +62,5 @@ window.ProductMotion=(()=>{
   }
   draw(t,1);
  }
- return Object.freeze({track,type,easing,trail});
+ return Object.freeze({track,type,replace,easing,trail});
 })();

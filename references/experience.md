@@ -59,3 +59,10 @@
 - Crop macro shots to the feature viewport and keep type outside it; magnifying a lid can hide the feature and reduce text contrast. Move the product toward its next composition before changing the explanation.
 - Reference-study scope matters: official presentation pages and production-team descriptions support design choices; failed video playback does not establish exact original shot timing or sound design.
 - Four treatment profiles passed saved-browser/type/audio checks; a complete precision concept case and the previous studio film provide a viewing comparison. Listener and audience response remain separate from technical checks.
+
+### 2026-10-30：软件产品的连续演示
+
+- 将功能列表组织为受众任务，延续同一输入、文字和输出；画面中的分类、摘要与提取结果应能回到输入核对。真实录屏、官网截图和作者演绎分别记录，截图/演绎不能证明实际操作已验证。具体规划见 [product-proof.md](product-proof.md)。
+- 中间态暴露的问题比完整姿态更多：资料连线放在结果卡片后面；拼图裁剪时保留每个字幕区；移动图片的轨迹也须避开主标题。镜头观察点不等于剪辑切点。
+- 波形/字幕或英文/译文在同一区域交叉淡化会形成阅读重影。`ProductMotion.replace` 将退场与显露分开，卡片及产品状态在回调外继续保留；顺序/逆序、父级状态与异常恢复有独立回归。需要并排对照时不使用替换。
+- 扫描、提取、整理、裁剪和完成可选择不同音色，音乐在操作观察处做减法；由语义结果决定提示音时点。此经验来自案例制作和技术/抽帧复查，不代表已验证播放率、品牌效果或主观听感。

@@ -1,9 +1,13 @@
-import copy,json,pathlib,subprocess,sys,tempfile,unittest
+import copy,json,pathlib,shutil,subprocess,sys,tempfile,unittest
 import numpy as np
 ROOT=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'engine'))
 from direction import resolve,plan
 import audio
 class ProductLaunchTests(unittest.TestCase):
+ @unittest.skipUnless(shutil.which('node'),'Node.js is needed for the JS helper regression')
+ def test_reading_region_replacement_runtime(self):
+  result=subprocess.run(['node',str(ROOT/'tests/product-motion.test.js')],capture_output=True,text=True)
+  self.assertEqual(result.returncode,0,result.stdout+result.stderr)
  def test_variants_change_real_defaults_and_preserve_overrides(self):
   rows=[]
   for variant in ['impact','precision','flow','playful','studio']:
